@@ -33,6 +33,9 @@ export default function MapView({ showDriver }: { showDriver?: boolean }) {
 
     mapRef.current = map;
 
+    // Ensure map fills container after layout settles
+    setTimeout(() => map.invalidateSize(), 100);
+
     return () => {
       map.remove();
       mapRef.current = null;
@@ -84,5 +87,5 @@ export default function MapView({ showDriver }: { showDriver?: boolean }) {
     }
   }, [showDriver, position]);
 
-  return <div ref={containerRef} className="absolute inset-0 z-0" />;
+  return <div ref={containerRef} className="fixed inset-0 z-0 w-full h-full" />;
 }
