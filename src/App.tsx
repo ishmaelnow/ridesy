@@ -65,6 +65,7 @@ const App = () => (
             <Route path="/driver/settings" element={<ProtectedRoute redirectTo="/auth?role=driver"><DriverProvider><div className="theme-driver contents"><DriverSettings /></div></DriverProvider></ProtectedRoute>} />
             <Route path="/driver/apply" element={<ProtectedRoute redirectTo="/auth?role=driver"><DriverApplication /></ProtectedRoute>} />
             <Route path="/driver/application-status" element={<ProtectedRoute redirectTo="/auth?role=driver"><ApplicationStatus /></ProtectedRoute>} />
+            <Route path="/driver/chat" element={<ProtectedRoute redirectTo="/auth?role=driver"><DriverProvider><div className="theme-driver contents"><Chat /></div></DriverProvider></ProtectedRoute>} />
 
             {/* Admin */}
             <Route path="/admin" element={<ProtectedRoute redirectTo="/auth"><AdminDashboard /></ProtectedRoute>} />

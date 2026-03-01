@@ -1,10 +1,12 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useDriver } from "@/contexts/DriverContext";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Power, MapPin, Navigation, User, Star, Clock, DollarSign, CheckCircle, X, Phone } from "lucide-react";
+import { Power, MapPin, Navigation, User, Star, Clock, DollarSign, CheckCircle, X, Phone, MessageCircle } from "lucide-react";
 
 export default function DriverBottomPanel() {
   const { driverStatus, setDriverStatus, goOnline, goOffline, currentRequest, acceptRide, declineRide, startRide, completeRide, earnings } = useDriver();
+  const navigate = useNavigate();
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-10">
@@ -156,6 +158,12 @@ export default function DriverBottomPanel() {
                 <p className="text-sm font-semibold text-foreground">{currentRequest.rider.name}</p>
                 <p className="text-xs text-muted-foreground">{currentRequest.pickup.address}</p>
               </div>
+              <button
+                onClick={() => navigate("/driver/chat")}
+                className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
+              >
+                <MessageCircle className="w-4 h-4 text-foreground" />
+              </button>
               <button className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
                 <Phone className="w-4 h-4 text-primary-foreground" />
               </button>
@@ -206,9 +214,17 @@ export default function DriverBottomPanel() {
                 <p className="text-xs text-muted-foreground">Dropping off at</p>
                 <p className="text-sm font-medium text-foreground">{currentRequest.dropoff.address}</p>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">Fare</p>
-                <p className="text-lg font-bold text-primary">${currentRequest.fare.toFixed(2)}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate("/driver/chat")}
+                  className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center"
+                >
+                  <MessageCircle className="w-4 h-4 text-foreground" />
+                </button>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Fare</p>
+                  <p className="text-lg font-bold text-primary">${currentRequest.fare.toFixed(2)}</p>
+                </div>
               </div>
             </div>
             <button

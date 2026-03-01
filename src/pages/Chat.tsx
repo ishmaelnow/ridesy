@@ -1,7 +1,6 @@
 import { ArrowLeft, Send } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
-import { useRide } from "@/contexts/RideContext";
 
 interface Message {
   id: string;
@@ -10,15 +9,12 @@ interface Message {
   time: string;
 }
 
-const initialMessages: Message[] = [
-  { id: "1", text: "Hi, I'm on my way!", sender: "driver", time: "2:31 PM" },
-  { id: "2", text: "Great, I'm at the pickup point", sender: "rider", time: "2:32 PM" },
-  { id: "3", text: "I'll be there in about 3 minutes", sender: "driver", time: "2:32 PM" },
-];
+const initialMessages: Message[] = [];
 
 export default function ChatPage() {
   const navigate = useNavigate();
-  const { ride } = useRide();
+  const location = useLocation();
+  const isDriverChat = location.pathname.startsWith("/driver");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
 
@@ -29,38 +25,27 @@ export default function ChatPage() {
       {
         id: crypto.randomUUID(),
         text: input.trim(),
-        sender: "rider",
+        sender: isDriverChat ? "driver" : "rider",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       },
     ]);
     setInput("");
 
-    // Simulate driver reply
-    setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          text: "Got it, thanks! 👍",
-          sender: "driver",
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        },
-      ]);
-    }, 2000);
+    // TODO: Send message via real-time messaging when implemented
   };
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col">
       {/* Header */}
       <div className="safe-top px-4 pt-3 pb-3 flex items-center gap-3 border-b border-border">
-        <button onClick={() => navigate("/rider")} className="p-2 -ml-2">
+        <button onClick={() => navigate(isDriverChat ? "/driver" : "/rider")} className="p-2 -ml-2">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
         <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-foreground">
-          {ride.driver?.name?.charAt(0) || "D"}
+          {isDriverChat ? "R" : "D"}
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">{ride.driver?.name || "Driver"}</p>
+          <p className="text-sm font-semibold text-foreground">{isDriverChat ? "Rider" : "Driver"}</p>
           <p className="text-xs text-primary">Online</p>
         </div>
       </div>
