@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useDriver } from "@/contexts/DriverContext";
 import {
-  X, LayoutDashboard, DollarSign, Clock, Star, Settings, Car, ArrowLeftRight,
+  X, LayoutDashboard, DollarSign, Clock, Star, Settings, Car,
 } from "lucide-react";
 
 const menuItems = [
@@ -11,7 +11,7 @@ const menuItems = [
   { icon: Clock, label: "Trip History", path: "/driver/history" },
   { icon: Star, label: "Ratings", path: "/driver/ratings" },
   { icon: Settings, label: "Settings", path: "/driver/settings" },
-  { icon: ArrowLeftRight, label: "Switch to Rider", path: "/rider" },
+  
 ];
 
 interface Props {
