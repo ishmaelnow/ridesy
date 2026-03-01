@@ -1,10 +1,47 @@
 import { Star, Check } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function RideComplete() {
   const { ride, cancelRide } = useRide();
+  const { user } = useAuth();
   const [rating, setRating] = useState(0);
+  const [recorded, setRecorded] = useState(false);
+
+  // Record ride payment in wallet
+  useState(() => {
+    if (!user || recorded || !ride.fare) return;
+    setRecorded(true);
+
+    const recordPayment = async () => {
+      // Insert transaction
+      await supabase.from("wallet_transactions").insert({
+        user_id: user.id,
+        type: "ride_payment",
+        amount: ride.fare,
+        description: `Ride to ${ride.dropoff?.address || "destination"}`,
+        status: "completed",
+      });
+
+      // Deduct from balance
+      const { data: bal } = await supabase
+        .from("wallet_balances")
+        .select("balance")
+        .eq("user_id", user.id)
+        .single();
+
+      if (bal) {
+        await supabase
+          .from("wallet_balances")
+          .update({ balance: Math.max(0, bal.balance - ride.fare), updated_at: new Date().toISOString() })
+          .eq("user_id", user.id);
+      }
+    };
+
+    recordPayment();
+  });
 
   return (
     <div className="space-y-5 py-2">

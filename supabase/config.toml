@@ -1,1 +1,13 @@
 project_id = "ahgebpuntwpwchdghago"
+
+[functions.create-wallet-checkout]
+verify_jwt = false
+
+[functions.verify-wallet-payment]
+verify_jwt = false
+
+[functions.create-connect-account]
+verify_jwt = false
+
+[functions.create-driver-payout]
+verify_jwt = false
