@@ -180,24 +180,27 @@ export default function DriverApplication() {
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 block">National ID</label>
                   <div className="grid grid-cols-2 gap-3">
-                    <button className={uploadBtnClass(data.idFrontUploaded)} onClick={() => update({ idFrontUploaded: true })}>
+                    <label className={uploadBtnClass(data.idFrontUploaded)}>
                       <Camera className="w-4 h-4" />
                       {data.idFrontUploaded ? "Front ✓" : "Front Side"}
-                    </button>
-                    <button className={uploadBtnClass(data.idBackUploaded)} onClick={() => update({ idBackUploaded: true })}>
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={() => update({ idFrontUploaded: true })} />
+                    </label>
+                    <label className={uploadBtnClass(data.idBackUploaded)}>
                       <Camera className="w-4 h-4" />
                       {data.idBackUploaded ? "Back ✓" : "Back Side"}
-                    </button>
+                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={() => update({ idBackUploaded: true })} />
+                    </label>
                   </div>
                 </div>
 
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 block">Driver's License</label>
                   <input className={inputClass} placeholder="License Number" value={data.licenseNumber} onChange={(e) => update({ licenseNumber: e.target.value })} />
-                  <button className={`${uploadBtnClass(data.licenseUploaded)} mt-3 w-full justify-center`} onClick={() => update({ licenseUploaded: true })}>
-                    <Upload className="w-4 h-4" />
-                    {data.licenseUploaded ? "License Uploaded ✓" : "Upload License Photo"}
-                  </button>
+                  <label className={`${uploadBtnClass(data.licenseUploaded)} mt-3 w-full justify-center cursor-pointer`}>
+                    <Camera className="w-4 h-4" />
+                    {data.licenseUploaded ? "License Uploaded ✓" : "Take License Photo"}
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={() => update({ licenseUploaded: true })} />
+                  </label>
                 </div>
               </div>
             )}
@@ -217,10 +220,11 @@ export default function DriverApplication() {
                 <input className={inputClass} placeholder="Insurance Provider" value={data.insuranceProvider} onChange={(e) => update({ insuranceProvider: e.target.value })} />
                 <input className={inputClass} placeholder="Policy Number" value={data.insurancePolicyNumber} onChange={(e) => update({ insurancePolicyNumber: e.target.value })} />
                 <input className={inputClass} placeholder="Expiry Date" type="date" value={data.insuranceExpiry} onChange={(e) => update({ insuranceExpiry: e.target.value })} />
-                <button className={`${uploadBtnClass(data.insuranceUploaded)} w-full justify-center`} onClick={() => update({ insuranceUploaded: true })}>
-                  <Upload className="w-4 h-4" />
-                  {data.insuranceUploaded ? "Insurance Doc Uploaded ✓" : "Upload Insurance Document"}
-                </button>
+                <label className={`${uploadBtnClass(data.insuranceUploaded)} w-full justify-center cursor-pointer`}>
+                  <Camera className="w-4 h-4" />
+                  {data.insuranceUploaded ? "Insurance Doc Uploaded ✓" : "Capture Insurance Document"}
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={() => update({ insuranceUploaded: true })} />
+                </label>
               </div>
             )}
 
@@ -277,10 +281,11 @@ export default function DriverApplication() {
                   </div>
                 </div>
 
-                <button className={`${uploadBtnClass(data.vehiclePhotoUploaded)} w-full justify-center`} onClick={() => update({ vehiclePhotoUploaded: true })}>
+                <label className={`${uploadBtnClass(data.vehiclePhotoUploaded)} w-full justify-center cursor-pointer`}>
                   <Camera className="w-4 h-4" />
-                  {data.vehiclePhotoUploaded ? "Vehicle Photo Uploaded ✓" : "Upload Vehicle Photo"}
-                </button>
+                  {data.vehiclePhotoUploaded ? "Vehicle Photo Uploaded ✓" : "Take Vehicle Photo"}
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={() => update({ vehiclePhotoUploaded: true })} />
+                </label>
               </div>
             )}
 
