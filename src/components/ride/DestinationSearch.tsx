@@ -1,22 +1,7 @@
-import { MapPin, ArrowLeft, Navigation } from "lucide-react";
+import { MapPin, ArrowLeft, Navigation, Loader2 } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
-import { useState, useRef } from "react";
-
-const pickupSuggestions = [
-  { address: "Current Location", distance: "", isCurrentLocation: true },
-  { address: "Penn Station, Manhattan", distance: "0.5 mi" },
-  { address: "Union Square, Manhattan", distance: "1.2 mi" },
-  { address: "Columbus Circle", distance: "2.0 mi" },
-  { address: "Wall Street, Financial District", distance: "1.4 mi" },
-];
-
-const dropoffSuggestions = [
-  { address: "Times Square, Manhattan", distance: "2.3 mi" },
-  { address: "Central Park Zoo", distance: "1.8 mi" },
-  { address: "Grand Central Terminal", distance: "3.1 mi" },
-  { address: "Brooklyn Bridge", distance: "4.5 mi" },
-  { address: "JFK International Airport", distance: "15.2 mi" },
-];
+import { useState, useRef, useEffect } from "react";
+import { geocodeAddress, type GeoResult } from "@/lib/geocode";
 
 type ActiveField = "pickup" | "dropoff";
 
@@ -25,48 +10,86 @@ export default function DestinationSearch() {
   const [pickup, setPickup] = useState("Current Location");
   const [dropoff, setDropoff] = useState("");
   const [activeField, setActiveField] = useState<ActiveField>("dropoff");
+  const [suggestions, setSuggestions] = useState<GeoResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
   const pickupRef = useRef<HTMLInputElement>(null);
   const dropoffRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const filteredPickupSuggestions = pickup && pickup !== "Current Location"
-    ? pickupSuggestions.filter((s) =>
-        s.address.toLowerCase().includes(pickup.toLowerCase())
-      )
-    : pickupSuggestions;
+  // Get current location coords
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => setPickupCoords({ lat: 40.7128, lng: -74.006 })
+    );
+  }, []);
 
-  const filteredDropoffSuggestions = dropoff
-    ? dropoffSuggestions.filter((s) =>
-        s.address.toLowerCase().includes(dropoff.toLowerCase())
-      )
-    : dropoffSuggestions;
-
-  const suggestions = activeField === "pickup" ? filteredPickupSuggestions : filteredDropoffSuggestions;
-
-  const handleSelectDropoff = (address: string) => {
-    setDropoff(address);
-    const pickupAddress = pickup || "Current Location";
-    setRide((prev) => ({
-      ...prev,
-      pickup: { lat: 40.7128, lng: -74.006, address: pickupAddress },
-      dropoff: { lat: 40.758, lng: -73.9855, address },
-      fare: +(Math.random() * 20 + 8).toFixed(2),
-      distance: (Math.random() * 10 + 1).toFixed(1) + " mi",
-      duration: Math.floor(Math.random() * 25 + 5) + " min",
-    }));
-    setStatus("fare_estimate");
+  // Debounced geocoding
+  const searchAddress = (query: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!query || query === "Current Location") {
+      setSuggestions([]);
+      return;
+    }
+    setLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      const results = await geocodeAddress(query);
+      setSuggestions(results);
+      setLoading(false);
+    }, 400);
   };
 
-  const handleSelectPickup = (address: string) => {
-    setPickup(address);
-    setActiveField("dropoff");
-    dropoffRef.current?.focus();
+  const handlePickupChange = (val: string) => {
+    setPickup(val);
+    searchAddress(val);
   };
 
-  const handleSelect = (address: string) => {
+  const handleDropoffChange = (val: string) => {
+    setDropoff(val);
+    searchAddress(val);
+  };
+
+  const handleSelect = (result: GeoResult) => {
     if (activeField === "pickup") {
-      handleSelectPickup(address);
+      setPickup(result.displayName.split(",").slice(0, 2).join(","));
+      setPickupCoords({ lat: result.lat, lng: result.lng });
+      setSuggestions([]);
+      setActiveField("dropoff");
+      dropoffRef.current?.focus();
     } else {
-      handleSelectDropoff(address);
+      const pCoords = pickupCoords || { lat: 40.7128, lng: -74.006 };
+      const pickupAddress = pickup || "Current Location";
+      const shortName = result.displayName.split(",").slice(0, 2).join(",");
+      setDropoff(shortName);
+
+      // Calculate rough fare/distance
+      const dist = haversine(pCoords.lat, pCoords.lng, result.lat, result.lng);
+      const fare = Math.max(5, dist * 2.5 + 3);
+      const duration = Math.max(3, Math.round(dist * 2.5));
+
+      setRide((prev) => ({
+        ...prev,
+        pickup: { lat: pCoords.lat, lng: pCoords.lng, address: pickupAddress },
+        dropoff: { lat: result.lat, lng: result.lng, address: shortName },
+        fare: +fare.toFixed(2),
+        distance: dist.toFixed(1) + " mi",
+        duration: duration + " min",
+      }));
+      setStatus("fare_estimate");
+    }
+  };
+
+  const handleCurrentLocation = () => {
+    if (activeField === "pickup") {
+      setPickup("Current Location");
+      navigator.geolocation?.getCurrentPosition(
+        (pos) => setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => {}
+      );
+      setSuggestions([]);
+      setActiveField("dropoff");
+      dropoffRef.current?.focus();
     }
   };
 
@@ -92,17 +115,14 @@ export default function DestinationSearch() {
           <input
             ref={pickupRef}
             value={pickup}
-            onChange={(e) => setPickup(e.target.value)}
-            onFocus={() => setActiveField("pickup")}
+            onChange={(e) => handlePickupChange(e.target.value)}
+            onFocus={() => { setActiveField("pickup"); setSuggestions([]); }}
             className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             placeholder="Pickup location"
           />
           {activeField === "pickup" && pickup && (
             <button
-              onClick={() => {
-                setPickup("");
-                pickupRef.current?.focus();
-              }}
+              onClick={() => { setPickup(""); pickupRef.current?.focus(); setSuggestions([]); }}
               className="text-xs text-muted-foreground hover:text-foreground px-1"
             >
               ✕
@@ -120,18 +140,15 @@ export default function DestinationSearch() {
           <input
             ref={dropoffRef}
             value={dropoff}
-            onChange={(e) => setDropoff(e.target.value)}
-            onFocus={() => setActiveField("dropoff")}
+            onChange={(e) => handleDropoffChange(e.target.value)}
+            onFocus={() => { setActiveField("dropoff"); setSuggestions([]); }}
             className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
             placeholder="Where to?"
             autoFocus
           />
           {activeField === "dropoff" && dropoff && (
             <button
-              onClick={() => {
-                setDropoff("");
-                dropoffRef.current?.focus();
-              }}
+              onClick={() => { setDropoff(""); dropoffRef.current?.focus(); setSuggestions([]); }}
               className="text-xs text-muted-foreground hover:text-foreground px-1"
             >
               ✕
@@ -140,36 +157,59 @@ export default function DestinationSearch() {
         </div>
       </div>
 
-      {/* Active field label */}
       <p className="text-xs text-muted-foreground px-1">
-        {activeField === "pickup" ? "Select pickup point" : "Select destination"}
+        {activeField === "pickup" ? "Search pickup point" : "Search destination"}
       </p>
 
-      {/* Suggestions */}
+      {/* Current Location option */}
+      {activeField === "pickup" && (
+        <button
+          onClick={handleCurrentLocation}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/60 transition-colors"
+        >
+          <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+            <Navigation className="w-4 h-4 text-primary" />
+          </div>
+          <p className="text-sm text-foreground">Current Location</p>
+        </button>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+        </div>
+      )}
+
+      {/* Geocoded Suggestions */}
       <div className="space-y-0.5 max-h-48 overflow-y-auto">
-        {suggestions.map((s) => (
+        {suggestions.map((s, i) => (
           <button
-            key={s.address}
-            onClick={() => handleSelect(s.address)}
+            key={`${s.lat}-${s.lng}-${i}`}
+            onClick={() => handleSelect(s)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/60 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-              {"isCurrentLocation" in s && s.isCurrentLocation ? (
-                <Navigation className="w-4 h-4 text-primary" />
-              ) : (
-                <MapPin className="w-4 h-4 text-muted-foreground" />
-              )}
+            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+              <MapPin className="w-4 h-4 text-muted-foreground" />
             </div>
-            <div className="flex-1 text-left">
-              <p className="text-sm text-foreground">{s.address}</p>
-              {s.distance && <p className="text-xs text-muted-foreground">{s.distance}</p>}
-            </div>
+            <p className="text-sm text-foreground text-left line-clamp-2">{s.displayName}</p>
           </button>
         ))}
-        {suggestions.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">No results found</p>
+        {!loading && suggestions.length === 0 && (activeField === "dropoff" ? dropoff : (pickup && pickup !== "Current Location")) && (
+          <p className="text-xs text-muted-foreground text-center py-3">Type to search real addresses</p>
         )}
       </div>
     </div>
   );
+}
+
+// Haversine distance in miles
+function haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
