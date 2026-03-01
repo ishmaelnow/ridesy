@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { reverseGeocode } from "@/lib/geocode";
 
 export type RideStatus =
   | "idle"
@@ -48,6 +49,7 @@ interface RideContextType {
   addNotification: (n: Omit<Notification, "id" | "time">) => void;
   soundEnabled: boolean;
   setSoundEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  userLocation: { lat: number; lng: number; address: string } | null;
 }
 
 export interface Notification {
@@ -85,6 +87,23 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
   const [walletBalance, setWalletBalance] = useState(250.0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
+
+  // Get real user location + reverse geocode
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const address = await reverseGeocode(lat, lng);
+        const shortAddress = address.split(",").slice(0, 2).join(",").trim();
+        setUserLocation({ lat, lng, address: shortAddress });
+      },
+      () => {
+        // Fallback
+        setUserLocation({ lat: 40.7128, lng: -74.006, address: "New York, NY" });
+      }
+    );
+  }, []);
 
   const addNotification = useCallback((n: Omit<Notification, "id" | "time">) => {
     setNotifications((prev) => [
@@ -157,6 +176,7 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         walletBalance, setWalletBalance,
         notifications, addNotification,
         soundEnabled, setSoundEnabled,
+        userLocation,
       }}
     >
       {children}

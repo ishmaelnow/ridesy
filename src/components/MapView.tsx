@@ -5,22 +5,17 @@ import { useRide } from "@/contexts/RideContext";
 export default function MapView({ showDriver }: { showDriver?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const [userPos, setUserPos] = useState<[number, number]>([40.7128, -74.006]);
   const riderMarkerRef = useRef<L.CircleMarker | null>(null);
   const pickupMarkerRef = useRef<L.Marker | null>(null);
   const dropoffMarkerRef = useRef<L.Marker | null>(null);
   const driverMarkerRef = useRef<L.Marker | null>(null);
   const routeLineRef = useRef<L.Polyline | null>(null);
   const [mapReady, setMapReady] = useState(false);
-  const { ride, status } = useRide();
+  const { ride, status, userLocation } = useRide();
 
-  // Get user location
-  useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
-      () => {}
-    );
-  }, []);
+  const userPos: [number, number] = userLocation
+    ? [userLocation.lat, userLocation.lng]
+    : [40.7128, -74.006];
 
   const initMap = useCallback(() => {
     const el = containerRef.current;
