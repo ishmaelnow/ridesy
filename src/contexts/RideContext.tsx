@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { reverseGeocode } from "@/lib/geocode";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type RideStatus =
   | "idle"
@@ -36,6 +38,14 @@ export interface RideInfo {
   driver: Driver | null;
 }
 
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  time: Date;
+  read: boolean;
+}
+
 interface RideContextType {
   status: RideStatus;
   setStatus: (s: RideStatus) => void;
@@ -50,14 +60,7 @@ interface RideContextType {
   soundEnabled: boolean;
   setSoundEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   userLocation: { lat: number; lng: number; address: string } | null;
-}
-
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  time: Date;
-  read: boolean;
+  activeRideId: string | null;
 }
 
 const defaultRide: RideInfo = {
@@ -69,25 +72,31 @@ const defaultRide: RideInfo = {
   driver: null,
 };
 
-const mockDriver: Driver = {
-  id: "d1",
-  name: "Ahmed Hassan",
-  photo: "",
-  rating: 4.9,
-  car: "Toyota Camry 2023",
-  plate: "ABC 1234",
-  eta: 4,
-};
-
 const RideContext = createContext<RideContextType | null>(null);
 
+// Map DB ride_status to our UI status
+function dbStatusToUi(dbStatus: string, hasDriver: boolean): RideStatus {
+  switch (dbStatus) {
+    case "requested": return "searching";
+    case "accepted": return "driver_accepted";
+    case "driver_arriving": return "driver_arriving";
+    case "in_progress": return "ride_started";
+    case "completed": return "ride_completed";
+    case "cancelled": return "idle";
+    default: return "idle";
+  }
+}
+
 export function RideProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [status, setStatus] = useState<RideStatus>("idle");
   const [ride, setRide] = useState<RideInfo>(defaultRide);
-  const [walletBalance, setWalletBalance] = useState(250.0);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
+  const [activeRideId, setActiveRideId] = useState<string | null>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Get real user location + reverse geocode
   useEffect(() => {
@@ -99,10 +108,127 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         setUserLocation({ lat, lng, address: shortAddress });
       },
       () => {
-        // No fallback — keep null so user sees real location prompt
+        // No fallback
       }
     );
   }, []);
+
+  // Fetch wallet balance from DB
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("wallet_balances")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setWalletBalance(data.balance);
+      });
+  }, [user]);
+
+  // Check for active ride on mount
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("rides")
+      .select("*")
+      .eq("rider_id", user.id)
+      .in("status", ["requested", "accepted", "driver_arriving", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          const r = data[0];
+          setActiveRideId(r.id);
+          setRide({
+            pickup: { lat: r.pickup_lat, lng: r.pickup_lng, address: r.pickup_address },
+            dropoff: { lat: r.dropoff_lat, lng: r.dropoff_lng, address: r.dropoff_address },
+            fare: Number(r.fare) || 0,
+            distance: r.distance || "",
+            duration: r.duration || "",
+            driver: null,
+          });
+          setStatus(dbStatusToUi(r.status, !!r.driver_id));
+          // Load driver profile if assigned
+          if (r.driver_id) {
+            loadDriverInfo(r.driver_id);
+          }
+        }
+      });
+  }, [user]);
+
+  const loadDriverInfo = async (driverId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("user_id", driverId)
+      .single();
+    if (data) {
+      setRide((prev) => ({
+        ...prev,
+        driver: {
+          id: driverId,
+          name: data.full_name || "Driver",
+          photo: "",
+          rating: 4.9,
+          car: "Vehicle",
+          plate: "---",
+          eta: 4,
+        },
+      }));
+    }
+  };
+
+  // Subscribe to ride changes
+  useEffect(() => {
+    if (!activeRideId) {
+      channelRef.current?.unsubscribe();
+      channelRef.current = null;
+      return;
+    }
+
+    const channel = supabase
+      .channel(`ride-${activeRideId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "rides",
+          filter: `id=eq.${activeRideId}`,
+        },
+        (payload) => {
+          const r = payload.new as any;
+          const newStatus = dbStatusToUi(r.status, !!r.driver_id);
+          setStatus(newStatus);
+          setRide((prev) => ({
+            ...prev,
+            fare: Number(r.fare) || prev.fare,
+            distance: r.distance || prev.distance,
+            duration: r.duration || prev.duration,
+          }));
+
+          if (r.driver_id && !ride.driver) {
+            loadDriverInfo(r.driver_id);
+          }
+
+          if (r.status === "completed" || r.status === "cancelled") {
+            // Clean up after a delay
+            if (r.status === "cancelled") {
+              setActiveRideId(null);
+              setStatus("idle");
+              setRide(defaultRide);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [activeRideId]);
 
   const addNotification = useCallback((n: Omit<Notification, "id" | "time">) => {
     setNotifications((prev) => [
@@ -128,44 +254,51 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, [soundEnabled]);
 
-  const requestRide = useCallback(() => {
+  // Request ride — insert into DB
+  const requestRide = useCallback(async () => {
+    if (!user || !ride.pickup || !ride.dropoff) return;
     setStatus("searching");
 
-    // Simulate driver search
-    setTimeout(() => {
-      setRide((prev) => ({ ...prev, driver: mockDriver }));
-      setStatus("driver_accepted");
-      addNotification({ title: "Driver Found!", message: `${mockDriver.name} accepted your ride`, read: false });
-      playSound();
+    const { data, error } = await supabase
+      .from("rides")
+      .insert({
+        rider_id: user.id,
+        pickup_lat: ride.pickup.lat,
+        pickup_lng: ride.pickup.lng,
+        pickup_address: ride.pickup.address,
+        dropoff_lat: ride.dropoff.lat,
+        dropoff_lng: ride.dropoff.lng,
+        dropoff_address: ride.dropoff.address,
+        fare: ride.fare,
+        distance: ride.distance,
+        duration: ride.duration,
+        status: "requested",
+      })
+      .select()
+      .single();
 
-      // Simulate driver arriving
-      setTimeout(() => {
-        setStatus("driver_arriving");
-        addNotification({ title: "Driver Arriving", message: "Your driver is nearby", read: false });
-        playSound();
+    if (error) {
+      console.error("Failed to create ride:", error);
+      setStatus("fare_estimate");
+      return;
+    }
 
-        // Simulate ride start
-        setTimeout(() => {
-          setStatus("ride_started");
-          addNotification({ title: "Ride Started", message: "Enjoy your ride!", read: false });
-          playSound();
+    setActiveRideId(data.id);
+    addNotification({ title: "Ride Requested", message: "Looking for nearby drivers...", read: false });
+  }, [user, ride.pickup, ride.dropoff, ride.fare, ride.distance, ride.duration, addNotification]);
 
-          // Simulate ride complete
-          setTimeout(() => {
-            setStatus("ride_completed");
-            setWalletBalance((prev) => prev - (ride.fare || 12.5));
-            addNotification({ title: "Ride Completed", message: `Fare: $${ride.fare || 12.5}`, read: false });
-            playSound();
-          }, 8000);
-        }, 5000);
-      }, 5000);
-    }, 3000);
-  }, [ride.fare, addNotification, playSound]);
-
-  const cancelRide = useCallback(() => {
+  // Cancel ride
+  const cancelRide = useCallback(async () => {
+    if (activeRideId) {
+      await supabase
+        .from("rides")
+        .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+        .eq("id", activeRideId);
+    }
+    setActiveRideId(null);
     setStatus("idle");
     setRide(defaultRide);
-  }, []);
+  }, [activeRideId]);
 
   return (
     <RideContext.Provider
@@ -176,6 +309,7 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         notifications, addNotification,
         soundEnabled, setSoundEnabled,
         userLocation,
+        activeRideId,
       }}
     >
       {children}

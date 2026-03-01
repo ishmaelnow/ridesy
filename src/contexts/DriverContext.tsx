@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export type DriverStatus = "offline" | "online" | "ride_offered" | "heading_to_pickup" | "at_pickup" | "ride_in_progress" | "ride_complete";
 
@@ -27,113 +29,271 @@ interface DriverContextType {
   setCurrentRequest: React.Dispatch<React.SetStateAction<RideRequest | null>>;
   acceptRide: () => void;
   declineRide: () => void;
+  startRide: () => void;
   completeRide: () => void;
   goOnline: () => void;
   goOffline: () => void;
   earnings: EarningsData;
   rating: number;
   completedTrips: RideRequest[];
+  activeRideId: string | null;
 }
 
 const DriverContext = createContext<DriverContextType | null>(null);
 
-const mockRequests: RideRequest[] = [
-  {
-    id: "r1",
-    rider: { name: "Sarah Miller", rating: 4.8 },
-    pickup: { address: "123 Main St", lat: 40.7128, lng: -74.006 },
-    dropoff: { address: "456 Broadway", lat: 40.72, lng: -74.0 },
-    fare: 14.5,
-    distance: "2.3 mi",
-    duration: "8 min",
-    createdAt: new Date(),
-  },
-  {
-    id: "r2",
-    rider: { name: "James Wilson", rating: 4.6 },
-    pickup: { address: "789 Park Ave", lat: 40.715, lng: -74.003 },
-    dropoff: { address: "321 5th Ave", lat: 40.725, lng: -73.995 },
-    fare: 22.0,
-    distance: "4.1 mi",
-    duration: "14 min",
-    createdAt: new Date(),
-  },
-];
+function dbStatusToDriver(dbStatus: string): DriverStatus {
+  switch (dbStatus) {
+    case "accepted": return "heading_to_pickup";
+    case "driver_arriving": return "at_pickup";
+    case "in_progress": return "ride_in_progress";
+    case "completed": return "ride_complete";
+    case "cancelled": return "online";
+    default: return "online";
+  }
+}
 
 export function DriverProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [driverStatus, setDriverStatus] = useState<DriverStatus>("offline");
   const [currentRequest, setCurrentRequest] = useState<RideRequest | null>(null);
-  const [earnings, setEarnings] = useState<EarningsData>({ today: 87.5, week: 432.0, month: 1845.0, trips: 12 });
+  const [earnings, setEarnings] = useState<EarningsData>({ today: 0, week: 0, month: 0, trips: 0 });
   const [completedTrips, setCompletedTrips] = useState<RideRequest[]>([]);
-  const rating = 4.92;
+  const [activeRideId, setActiveRideId] = useState<string | null>(null);
+  const [rating] = useState(4.92);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load earnings from completed rides
+  useEffect(() => {
+    if (!user) return;
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
+
+    supabase
+      .from("rides")
+      .select("fare, completed_at")
+      .eq("driver_id", user.id)
+      .eq("status", "completed")
+      .then(({ data }) => {
+        if (!data) return;
+        let today = 0, week = 0, month = 0;
+        data.forEach((r) => {
+          const fare = Number(r.fare) || 0;
+          month += fare;
+          if (r.completed_at && r.completed_at >= startOfWeek) week += fare;
+          if (r.completed_at && r.completed_at >= startOfDay) today += fare;
+        });
+        setEarnings({ today, week, month, trips: data.length });
+      });
+  }, [user]);
+
+  // Check for active ride on mount
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("rides")
+      .select("*")
+      .eq("driver_id", user.id)
+      .in("status", ["accepted", "driver_arriving", "in_progress"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .then(async ({ data }) => {
+        if (data && data.length > 0) {
+          const r = data[0];
+          setActiveRideId(r.id);
+          const riderProfile = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", r.rider_id)
+            .single();
+          setCurrentRequest({
+            id: r.id,
+            rider: { name: riderProfile.data?.full_name || "Rider", rating: 4.8 },
+            pickup: { address: r.pickup_address, lat: r.pickup_lat, lng: r.pickup_lng },
+            dropoff: { address: r.dropoff_address, lat: r.dropoff_lat, lng: r.dropoff_lng },
+            fare: Number(r.fare) || 0,
+            distance: r.distance || "",
+            duration: r.duration || "",
+            createdAt: new Date(r.created_at),
+          });
+          setDriverStatus(dbStatusToDriver(r.status));
+        }
+      });
+  }, [user]);
+
+  // Poll for new ride requests when online
+  useEffect(() => {
+    if (driverStatus !== "online" || !user) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+
+    const checkForRides = async () => {
+      const { data } = await supabase
+        .from("rides")
+        .select("*")
+        .eq("status", "requested")
+        .is("driver_id", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (data && data.length > 0 && driverStatus === "online") {
+        const r = data[0];
+        // Load rider info
+        const riderProfile = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("user_id", r.rider_id)
+          .single();
+
+        setCurrentRequest({
+          id: r.id,
+          rider: { name: riderProfile.data?.full_name || "Rider", rating: 4.8 },
+          pickup: { address: r.pickup_address, lat: r.pickup_lat, lng: r.pickup_lng },
+          dropoff: { address: r.dropoff_address, lat: r.dropoff_lat, lng: r.dropoff_lng },
+          fare: Number(r.fare) || 0,
+          distance: r.distance || "",
+          duration: r.duration || "",
+          createdAt: new Date(r.created_at),
+        });
+        setDriverStatus("ride_offered");
+      }
+    };
+
+    // Check immediately
+    checkForRides();
+    // Then poll every 5 seconds
+    pollingRef.current = setInterval(checkForRides, 5000);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [driverStatus, user]);
+
+  // Subscribe to active ride updates
+  useEffect(() => {
+    if (!activeRideId) {
+      channelRef.current?.unsubscribe();
+      channelRef.current = null;
+      return;
+    }
+
+    const channel = supabase
+      .channel(`driver-ride-${activeRideId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "rides",
+          filter: `id=eq.${activeRideId}`,
+        },
+        (payload) => {
+          const r = payload.new as any;
+          if (r.status === "cancelled") {
+            setDriverStatus("online");
+            setCurrentRequest(null);
+            setActiveRideId(null);
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [activeRideId]);
 
   const goOnline = useCallback(() => {
     setDriverStatus("online");
-    // Simulate incoming ride request after going online
-    setTimeout(() => {
-      setCurrentRequest(mockRequests[Math.floor(Math.random() * mockRequests.length)]);
-      setDriverStatus("ride_offered");
-    }, 4000);
   }, []);
 
   const goOffline = useCallback(() => {
     setDriverStatus("offline");
     setCurrentRequest(null);
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
   }, []);
 
-  const acceptRide = useCallback(() => {
+  const acceptRide = useCallback(async () => {
+    if (!currentRequest || !user) return;
+    
+    const { error } = await supabase
+      .from("rides")
+      .update({ driver_id: user.id, status: "accepted" })
+      .eq("id", currentRequest.id)
+      .eq("status", "requested"); // Only accept if still requested
+
+    if (error) {
+      console.error("Failed to accept ride:", error);
+      setCurrentRequest(null);
+      setDriverStatus("online");
+      return;
+    }
+
+    setActiveRideId(currentRequest.id);
     setDriverStatus("heading_to_pickup");
-    // Simulate arriving at pickup
-    setTimeout(() => {
-      setDriverStatus("at_pickup");
-      // Simulate rider getting in
-      setTimeout(() => {
-        setDriverStatus("ride_in_progress");
-      }, 5000);
-    }, 6000);
-  }, []);
+  }, [currentRequest, user]);
 
   const declineRide = useCallback(() => {
     setCurrentRequest(null);
     setDriverStatus("online");
-    // Simulate another request
-    setTimeout(() => {
-      setCurrentRequest(mockRequests[Math.floor(Math.random() * mockRequests.length)]);
-      setDriverStatus("ride_offered");
-    }, 5000);
   }, []);
 
-  const completeRide = useCallback(() => {
-    if (currentRequest) {
-      setCompletedTrips((prev) => [...prev, currentRequest]);
-      setEarnings((prev) => ({
-        ...prev,
-        today: prev.today + currentRequest.fare,
-        week: prev.week + currentRequest.fare,
-        month: prev.month + currentRequest.fare,
-        trips: prev.trips + 1,
-      }));
-    }
+  // Driver arrived at pickup — update status
+  const startRide = useCallback(async () => {
+    if (!activeRideId) return;
+    await supabase
+      .from("rides")
+      .update({ status: "in_progress", started_at: new Date().toISOString() })
+      .eq("id", activeRideId);
+    setDriverStatus("ride_in_progress");
+  }, [activeRideId]);
+
+  const completeRide = useCallback(async () => {
+    if (!activeRideId || !currentRequest) return;
+
+    await supabase
+      .from("rides")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("id", activeRideId);
+
+    setCompletedTrips((prev) => [...prev, currentRequest]);
+    setEarnings((prev) => ({
+      ...prev,
+      today: prev.today + currentRequest.fare,
+      week: prev.week + currentRequest.fare,
+      month: prev.month + currentRequest.fare,
+      trips: prev.trips + 1,
+    }));
+
     setDriverStatus("ride_complete");
     setTimeout(() => {
       setCurrentRequest(null);
+      setActiveRideId(null);
       setDriverStatus("online");
-      // Next request
-      setTimeout(() => {
-        setCurrentRequest(mockRequests[Math.floor(Math.random() * mockRequests.length)]);
-        setDriverStatus("ride_offered");
-      }, 6000);
     }, 3000);
-  }, [currentRequest]);
+  }, [activeRideId, currentRequest]);
 
   return (
     <DriverContext.Provider
       value={{
         driverStatus, setDriverStatus,
         currentRequest, setCurrentRequest,
-        acceptRide, declineRide, completeRide,
+        acceptRide, declineRide, startRide, completeRide,
         goOnline, goOffline,
         earnings, rating, completedTrips,
+        activeRideId,
       }}
     >
       {children}
