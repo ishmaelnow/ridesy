@@ -1,9 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useDriver } from "@/contexts/DriverContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Power, MapPin, Navigation, User, Star, Clock, DollarSign, CheckCircle, X, Phone } from "lucide-react";
 
 export default function DriverBottomPanel() {
-  const { driverStatus, goOnline, goOffline, currentRequest, acceptRide, declineRide, completeRide, earnings } = useDriver();
+  const { driverStatus, setDriverStatus, goOnline, goOffline, currentRequest, acceptRide, declineRide, startRide, completeRide, earnings } = useDriver();
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-10">
@@ -159,10 +160,31 @@ export default function DriverBottomPanel() {
                 <Phone className="w-4 h-4 text-primary-foreground" />
               </button>
             </div>
-            <div className="bg-secondary rounded-xl px-4 py-3 text-center">
+            <div className="bg-secondary rounded-xl px-4 py-3 text-center mb-4">
               <p className="text-xs text-muted-foreground">Estimated fare</p>
               <p className="text-lg font-bold text-foreground">${currentRequest.fare.toFixed(2)}</p>
             </div>
+            {driverStatus === "heading_to_pickup" && (
+              <button
+                onClick={async () => {
+                  await supabase.from("rides").update({ status: "driver_arriving" }).eq("id", currentRequest.id);
+                  setDriverStatus("at_pickup");
+                }}
+                className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+              >
+                <MapPin className="w-4 h-4" />
+                I've Arrived
+              </button>
+            )}
+            {driverStatus === "at_pickup" && (
+              <button
+                onClick={startRide}
+                className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+              >
+                <Navigation className="w-4 h-4" />
+                Start Ride
+              </button>
+            )}
           </motion.div>
         )}
 
