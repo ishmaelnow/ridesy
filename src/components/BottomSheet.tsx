@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Briefcase, Star, MapPin, Search, Clock, ChevronRight } from "lucide-react";
+import { Home, Briefcase, MapPin, Search, Clock } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import DestinationSearch from "./ride/DestinationSearch";
 import FareEstimate from "./ride/FareEstimate";
@@ -9,17 +9,12 @@ import RideActive from "./ride/RideActive";
 import RideComplete from "./ride/RideComplete";
 
 const savedPlaces = [
-  { icon: Home, label: "Home", address: "742 Evergreen Terrace" },
-  { icon: Briefcase, label: "Work", address: "123 Business Ave" },
-];
-
-const recentPlaces = [
-  { address: "Central Park, New York", time: "Yesterday" },
-  { address: "JFK Airport, Terminal 4", time: "3 days ago" },
+  { icon: Home, label: "Home", address: "Set home address" },
+  { icon: Briefcase, label: "Work", address: "Set work address" },
 ];
 
 function IdlePanel() {
-  const { setStatus } = useRide();
+  const { setStatus, userLocation } = useRide();
 
   return (
     <motion.div
@@ -59,25 +54,24 @@ function IdlePanel() {
         ))}
       </div>
 
-      {/* Recent */}
-      <div className="border-t border-border pt-3">
-        <p className="text-xs text-muted-foreground px-3 mb-2">Recent</p>
-        {recentPlaces.map((place) => (
+      {/* Current Location */}
+      {userLocation && (
+        <div className="border-t border-border pt-3">
+          <p className="text-xs text-muted-foreground px-3 mb-2">Your location</p>
           <button
-            key={place.address}
             onClick={() => setStatus("selecting_destination")}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/60 transition-colors"
           >
             <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
-              <Clock className="w-4 h-4 text-muted-foreground" />
+              <MapPin className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1 text-left">
-              <p className="text-sm text-foreground">{place.address}</p>
-              <p className="text-xs text-muted-foreground">{place.time}</p>
+              <p className="text-sm text-foreground">{userLocation.address}</p>
+              <p className="text-xs text-muted-foreground">Current location</p>
             </div>
           </button>
-        ))}
-      </div>
+        </div>
+      )}
     </motion.div>
   );
 }

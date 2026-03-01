@@ -6,24 +6,26 @@ import { geocodeAddress, type GeoResult } from "@/lib/geocode";
 type ActiveField = "pickup" | "dropoff";
 
 export default function DestinationSearch() {
-  const { setStatus, setRide } = useRide();
-  const [pickup, setPickup] = useState("Current Location");
+  const { setStatus, setRide, userLocation } = useRide();
+  const [pickup, setPickup] = useState(userLocation?.address || "Current Location");
   const [dropoff, setDropoff] = useState("");
   const [activeField, setActiveField] = useState<ActiveField>("dropoff");
   const [suggestions, setSuggestions] = useState<GeoResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(
+    userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : null
+  );
   const pickupRef = useRef<HTMLInputElement>(null);
   const dropoffRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // Get current location coords
+  // Sync with context location
   useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setPickupCoords({ lat: 40.7128, lng: -74.006 })
-    );
-  }, []);
+    if (userLocation && !pickupCoords) {
+      setPickupCoords({ lat: userLocation.lat, lng: userLocation.lng });
+      setPickup(userLocation.address);
+    }
+  }, [userLocation]);
 
   // Debounced geocoding
   const searchAddress = (query: string) => {
@@ -58,8 +60,8 @@ export default function DestinationSearch() {
       setActiveField("dropoff");
       dropoffRef.current?.focus();
     } else {
-      const pCoords = pickupCoords || { lat: 40.7128, lng: -74.006 };
-      const pickupAddress = pickup || "Current Location";
+      const pCoords = pickupCoords || (userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : { lat: 40.7128, lng: -74.006 });
+      const pickupAddress = pickup || userLocation?.address || "Current Location";
       const shortName = result.displayName.split(",").slice(0, 2).join(",");
       setDropoff(shortName);
 
@@ -81,12 +83,9 @@ export default function DestinationSearch() {
   };
 
   const handleCurrentLocation = () => {
-    if (activeField === "pickup") {
-      setPickup("Current Location");
-      navigator.geolocation?.getCurrentPosition(
-        (pos) => setPickupCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        () => {}
-      );
+    if (activeField === "pickup" && userLocation) {
+      setPickup(userLocation.address);
+      setPickupCoords({ lat: userLocation.lat, lng: userLocation.lng });
       setSuggestions([]);
       setActiveField("dropoff");
       dropoffRef.current?.focus();
