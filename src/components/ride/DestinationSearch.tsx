@@ -60,7 +60,7 @@ export default function DestinationSearch() {
       setActiveField("dropoff");
       dropoffRef.current?.focus();
     } else {
-      const pCoords = pickupCoords || (userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : { lat: 40.7128, lng: -74.006 });
+      const pCoords = pickupCoords || (userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : null);
       const pickupAddress = pickup || userLocation?.address || "Current Location";
       const shortName = result.displayName.split(",").slice(0, 2).join(",");
       setDropoff(shortName);

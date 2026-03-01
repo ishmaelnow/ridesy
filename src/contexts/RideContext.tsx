@@ -99,8 +99,7 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         setUserLocation({ lat, lng, address: shortAddress });
       },
       () => {
-        // Fallback
-        setUserLocation({ lat: 40.7128, lng: -74.006, address: "New York, NY" });
+        // No fallback — keep null so user sees real location prompt
       }
     );
   }, []);
