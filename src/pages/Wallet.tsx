@@ -1,18 +1,83 @@
-import { ArrowLeft, Plus, ArrowUpRight, ArrowDownLeft, CreditCard } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useRide } from "@/contexts/RideContext";
+import { ArrowLeft, Plus, ArrowUpRight, ArrowDownLeft, CreditCard, Loader2, CheckCircle } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
-const transactions = [
-  { id: "1", type: "debit", label: "Ride to Times Square", amount: -12.5, date: "Today, 2:30 PM" },
-  { id: "2", type: "credit", label: "Wallet Top Up", amount: 50.0, date: "Yesterday" },
-  { id: "3", type: "debit", label: "Ride to JFK Airport", amount: -35.0, date: "Feb 25" },
-  { id: "4", type: "credit", label: "Refund - Cancelled Ride", amount: 8.0, date: "Feb 24" },
-  { id: "5", type: "debit", label: "Ride to Brooklyn Bridge", amount: -15.75, date: "Feb 23" },
-];
+const TOP_UP_AMOUNTS = [10, 25, 50, 100];
 
 export default function WalletPage() {
   const navigate = useNavigate();
-  const { walletBalance } = useRide();
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [balance, setBalance] = useState<number>(0);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [topUpLoading, setTopUpLoading] = useState<number | null>(null);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+
+  // Handle return from Stripe checkout
+  useEffect(() => {
+    if (searchParams.get("success") === "true") {
+      const amount = searchParams.get("amount");
+      if (amount) {
+        // Verify and credit the wallet
+        supabase.functions.invoke("verify-wallet-payment", {
+          body: { amount: Number(amount) },
+        }).then(() => {
+          setShowSuccess(true);
+          fetchData();
+          setTimeout(() => setShowSuccess(false), 3000);
+        });
+      }
+      // Clean URL
+      window.history.replaceState({}, "", "/wallet");
+    }
+  }, [searchParams]);
+
+  const fetchData = async () => {
+    if (!user) return;
+    setLoading(true);
+
+    const [balanceRes, txRes] = await Promise.all([
+      supabase.from("wallet_balances").select("balance").eq("user_id", user.id).single(),
+      supabase.from("wallet_transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+    ]);
+
+    setBalance(balanceRes.data?.balance ?? 0);
+    setTransactions(txRes.data ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, [user]);
+
+  const handleTopUp = async (amount: number) => {
+    setTopUpLoading(amount);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-wallet-checkout", {
+        body: { amount },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to create checkout", variant: "destructive" });
+    } finally {
+      setTopUpLoading(null);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    if (diff < 86400000) return "Today";
+    if (diff < 172800000) return "Yesterday";
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -23,13 +88,26 @@ export default function WalletPage() {
         <h1 className="text-lg font-semibold text-foreground">Wallet</h1>
       </div>
 
+      {/* Success banner */}
+      {showSuccess && (
+        <div className="mx-5 mt-4 flex items-center gap-2 bg-primary/15 text-primary rounded-xl px-4 py-3 text-sm font-medium animate-in fade-in">
+          <CheckCircle className="w-5 h-5" />
+          Wallet topped up successfully!
+        </div>
+      )}
+
       <div className="p-5 space-y-6">
         {/* Balance Card */}
         <div className="bg-primary rounded-2xl p-5 text-primary-foreground">
           <p className="text-sm opacity-80">Available Balance</p>
-          <p className="text-3xl font-bold mt-1">${walletBalance.toFixed(2)}</p>
+          <p className="text-3xl font-bold mt-1">
+            {loading ? "..." : `$${Number(balance).toFixed(2)}`}
+          </p>
           <div className="flex gap-3 mt-4">
-            <button className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary-foreground/20 text-sm font-medium">
+            <button
+              onClick={() => setShowTopUp(!showTopUp)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary-foreground/20 text-sm font-medium active:scale-[0.97] transition-transform"
+            >
               <Plus className="w-4 h-4" />
               Top Up
             </button>
@@ -40,6 +118,32 @@ export default function WalletPage() {
           </div>
         </div>
 
+        {/* Top-up amounts */}
+        {showTopUp && (
+          <div className="animate-in slide-in-from-top-2 fade-in">
+            <p className="text-sm font-medium text-muted-foreground mb-3">Select amount</p>
+            <div className="grid grid-cols-2 gap-3">
+              {TOP_UP_AMOUNTS.map((amt) => (
+                <button
+                  key={amt}
+                  disabled={topUpLoading !== null}
+                  onClick={() => handleTopUp(amt)}
+                  className="flex items-center justify-center gap-2 py-3.5 rounded-xl bg-secondary text-foreground font-semibold text-sm active:scale-[0.97] transition-all disabled:opacity-50"
+                >
+                  {topUpLoading === amt ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    `$${amt}`
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Powered by Stripe · Apple Pay & Google Pay supported
+            </p>
+          </div>
+        )}
+
         {/* Payment Methods */}
         <div>
           <p className="text-sm font-medium text-muted-foreground mb-3">Payment Methods</p>
@@ -49,44 +153,49 @@ export default function WalletPage() {
                 <CreditCard className="w-4 h-4 text-accent" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-foreground">Visa •••• 4242</p>
-                <p className="text-xs text-muted-foreground">Default</p>
+                <p className="text-sm text-foreground">Stripe Checkout</p>
+                <p className="text-xs text-muted-foreground">Apple Pay, Google Pay, Cards</p>
               </div>
             </div>
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-              <Plus className="w-4 h-4" />
-              Add payment method
-            </button>
           </div>
         </div>
 
         {/* Transactions */}
         <div>
           <p className="text-sm font-medium text-muted-foreground mb-3">Transaction History</p>
-          <div className="space-y-1">
-            {transactions.map((tx) => (
-              <div key={tx.id} className="flex items-center gap-3 px-3 py-3 rounded-xl">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
-                  tx.type === "credit" ? "bg-primary/15" : "bg-secondary"
-                }`}>
-                  {tx.type === "credit" ? (
-                    <ArrowDownLeft className="w-4 h-4 text-primary" />
-                  ) : (
-                    <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-foreground">{tx.label}</p>
-                  <p className="text-xs text-muted-foreground">{tx.date}</p>
-                </div>
-                <p className={`text-sm font-medium ${
-                  tx.type === "credit" ? "text-primary" : "text-foreground"
-                }`}>
-                  {tx.type === "credit" ? "+" : ""}${Math.abs(tx.amount).toFixed(2)}
-                </p>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : transactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No transactions yet</p>
+          ) : (
+            <div className="space-y-1">
+              {transactions.map((tx) => {
+                const isCredit = tx.type === "top_up" || tx.type === "refund";
+                return (
+                  <div key={tx.id} className="flex items-center gap-3 px-3 py-3 rounded-xl">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                      isCredit ? "bg-primary/15" : "bg-secondary"
+                    }`}>
+                      {isCredit ? (
+                        <ArrowDownLeft className="w-4 h-4 text-primary" />
+                      ) : (
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-foreground">{tx.description || tx.type}</p>
+                      <p className="text-xs text-muted-foreground">{formatDate(tx.created_at)}</p>
+                    </div>
+                    <p className={`text-sm font-medium ${isCredit ? "text-primary" : "text-foreground"}`}>
+                      {isCredit ? "+" : "-"}${Math.abs(tx.amount).toFixed(2)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
