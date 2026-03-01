@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   User, Bell, Wallet, ClipboardList, MapPin, Settings,
-  Info, MessageSquare, Share2, LogOut, X
+  Info, MessageSquare, Share2, LogOut, X, Car
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRide } from "@/contexts/RideContext";
@@ -13,6 +13,7 @@ const menuItems = [
   { icon: ClipboardList, label: "My Rides", path: "/rides" },
   { icon: MapPin, label: "Saved Places", path: "/saved-places" },
   { icon: Settings, label: "Settings", path: "/settings" },
+  { icon: Car, label: "Switch to Driver", path: "/driver" },
   { icon: Info, label: "About", path: "/about" },
   { icon: MessageSquare, label: "Support", path: "/support" },
   { icon: Share2, label: "Share App", path: null },
