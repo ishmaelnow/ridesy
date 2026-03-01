@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import { useDriver } from "@/contexts/DriverContext";
+import { reverseGeocode } from "@/lib/geocode";
 
 export default function DriverMap({ showRoute }: { showRoute?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const [userPos] = useState<[number, number]>([40.7128, -74.006]);
+  const [userPos, setUserPos] = useState<[number, number] | null>(null);
   const driverMarkerRef = useRef<L.Marker | null>(null);
   const pickupMarkerRef = useRef<L.Marker | null>(null);
   const dropoffMarkerRef = useRef<L.Marker | null>(null);
@@ -13,9 +14,17 @@ export default function DriverMap({ showRoute }: { showRoute?: boolean }) {
   const [mapReady, setMapReady] = useState(false);
   const { currentRequest, driverStatus } = useDriver();
 
+  // Get real geolocation
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => setUserPos([pos.coords.latitude, pos.coords.longitude]),
+      () => {} // No fallback
+    );
+  }, []);
+
   const initMap = useCallback(() => {
     const el = containerRef.current;
-    if (!el || mapRef.current) return;
+    if (!el || mapRef.current || !userPos) return;
     const rect = el.getBoundingClientRect();
     if (rect.width < 100 || rect.height < 100) {
       requestAnimationFrame(initMap);

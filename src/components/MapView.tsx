@@ -13,13 +13,13 @@ export default function MapView({ showDriver }: { showDriver?: boolean }) {
   const [mapReady, setMapReady] = useState(false);
   const { ride, status, userLocation } = useRide();
 
-  const userPos: [number, number] = userLocation
+  const userPos: [number, number] | null = userLocation
     ? [userLocation.lat, userLocation.lng]
-    : [40.7128, -74.006];
+    : null;
 
   const initMap = useCallback(() => {
     const el = containerRef.current;
-    if (!el || mapRef.current) return;
+    if (!el || mapRef.current || !userPos) return;
     const rect = el.getBoundingClientRect();
     if (rect.width < 100 || rect.height < 100) {
       requestAnimationFrame(initMap);
