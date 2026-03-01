@@ -9,7 +9,7 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-[100dvh] bg-background">
       <div className="safe-top px-4 pt-3 pb-4 flex items-center gap-3 border-b border-border">
-        <button onClick={() => navigate("/")} className="p-2 -ml-2">
+        <button onClick={() => navigate("/rider")} className="p-2 -ml-2">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
         <h1 className="text-lg font-semibold text-foreground">Notifications</h1>

@@ -11,7 +11,7 @@ const menuItems = [
   { icon: Clock, label: "Trip History", path: "/driver/history" },
   { icon: Star, label: "Ratings", path: "/driver/ratings" },
   { icon: Settings, label: "Settings", path: "/driver/settings" },
-  { icon: ArrowLeftRight, label: "Switch to Rider", path: "/" },
+  { icon: ArrowLeftRight, label: "Switch to Rider", path: "/rider" },
 ];
 
 interface Props {

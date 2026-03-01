@@ -53,7 +53,7 @@ export default function ChatPage() {
     <div className="h-[100dvh] bg-background flex flex-col">
       {/* Header */}
       <div className="safe-top px-4 pt-3 pb-3 flex items-center gap-3 border-b border-border">
-        <button onClick={() => navigate("/")} className="p-2 -ml-2">
+        <button onClick={() => navigate("/rider")} className="p-2 -ml-2">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </button>
         <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-foreground">
