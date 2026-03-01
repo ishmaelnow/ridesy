@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 
 export default function MapView({ showDriver }: { showDriver?: boolean }) {
-  const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
   const [position, setPosition] = useState<[number, number]>([40.7128, -74.006]);
   const riderMarkerRef = useRef<L.CircleMarker | null>(null);
   const driverMarkerRef = useRef<L.Marker | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Get user location
   useEffect(() => {
@@ -16,11 +17,18 @@ export default function MapView({ showDriver }: { showDriver?: boolean }) {
     );
   }, []);
 
-  // Initialize map
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+  const initMap = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || mapRef.current) return;
+    
+    const rect = el.getBoundingClientRect();
+    // Don't init if container has no real size yet
+    if (rect.width < 100 || rect.height < 100) {
+      requestAnimationFrame(initMap);
+      return;
+    }
 
-    const map = L.map(containerRef.current, {
+    const map = L.map(el, {
       center: position,
       zoom: 15,
       zoomControl: false,
@@ -32,17 +40,40 @@ export default function MapView({ showDriver }: { showDriver?: boolean }) {
     }).addTo(map);
 
     mapRef.current = map;
+    setMapReady(true);
 
-    // Ensure map fills container after layout settles
-    setTimeout(() => map.invalidateSize(), 0);
-    setTimeout(() => map.invalidateSize(), 200);
-    setTimeout(() => map.invalidateSize(), 500);
+    // Invalidate after fully painted
+    requestAnimationFrame(() => {
+      map.invalidateSize({ animate: false });
+      setTimeout(() => map.invalidateSize({ animate: false }), 100);
+      setTimeout(() => map.invalidateSize({ animate: false }), 500);
+    });
+
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize({ animate: false });
+    });
+    ro.observe(el);
 
     return () => {
-      map.remove();
-      mapRef.current = null;
+      ro.disconnect();
     };
-  }, []);
+  }, [position]);
+
+  // Initialize map after mount
+  useEffect(() => {
+    // Wait for next frame so layout is settled
+    const raf = requestAnimationFrame(() => {
+      initMap();
+    });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [initMap]);
 
   // Update map center & rider marker
   useEffect(() => {
@@ -62,7 +93,7 @@ export default function MapView({ showDriver }: { showDriver?: boolean }) {
         weight: 3,
       }).addTo(map);
     }
-  }, [position]);
+  }, [position, mapReady]);
 
   // Driver marker
   useEffect(() => {
@@ -87,7 +118,20 @@ export default function MapView({ showDriver }: { showDriver?: boolean }) {
       driverMarkerRef.current.remove();
       driverMarkerRef.current = null;
     }
-  }, [showDriver, position]);
+  }, [showDriver, position, mapReady]);
 
-  return <div ref={containerRef} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh', zIndex: 0 }} />;
+  return (
+    <div
+      ref={containerRef}
+      id="map-container"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 0,
+      }}
+    />
+  );
 }

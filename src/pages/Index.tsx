@@ -11,7 +11,7 @@ const Index = () => {
   const showDriver = ["driver_accepted", "driver_arriving", "ride_started"].includes(status);
 
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden bg-background">
+    <div className="relative w-full overflow-hidden" style={{ height: "100dvh", width: "100vw" }}>
       <MapView showDriver={showDriver} />
       <TopBar onMenuOpen={() => setMenuOpen(true)} />
       <BottomSheet />
