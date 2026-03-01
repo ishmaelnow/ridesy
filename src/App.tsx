@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { RideProvider } from "@/contexts/RideContext";
 import { DriverProvider } from "@/contexts/DriverContext";
+import RoleSelect from "./pages/RoleSelect";
 import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import Wallet from "./pages/Wallet";
@@ -30,8 +31,10 @@ const App = () => (
         <RideProvider>
           <DriverProvider>
             <Routes>
+              {/* Role selection */}
+              <Route path="/" element={<RoleSelect />} />
               {/* Rider routes */}
-              <Route path="/" element={<Index />} />
+              <Route path="/rider" element={<Index />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/rides" element={<RideHistory />} />

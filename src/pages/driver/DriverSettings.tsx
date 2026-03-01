@@ -6,7 +6,7 @@ const items = [
   { icon: Bell, label: "Notifications", value: "Enabled" },
   { icon: Shield, label: "Documents", value: "Verified" },
   { icon: HelpCircle, label: "Support", value: "" },
-  { icon: LogOut, label: "Switch to Rider", value: "", path: "/" },
+  { icon: LogOut, label: "Switch to Rider", value: "", path: "/rider" },
 ];
 
 export default function DriverSettings() {
