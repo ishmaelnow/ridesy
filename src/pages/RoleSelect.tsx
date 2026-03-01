@@ -32,7 +32,7 @@ export default function RoleSelect() {
           </button>
 
           <button
-            onClick={() => navigate("/driver")}
+            onClick={() => navigate("/driver/apply")}
             className="w-full flex items-center gap-4 p-5 rounded-2xl bg-card border-2 border-border hover:border-primary transition-colors active:scale-[0.98]"
           >
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">

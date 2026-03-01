@@ -19,6 +19,7 @@ import DriverEarnings from "./pages/driver/DriverEarnings";
 import DriverHistory from "./pages/driver/DriverHistory";
 import DriverRatings from "./pages/driver/DriverRatings";
 import DriverSettings from "./pages/driver/DriverSettings";
+import DriverApplication from "./pages/driver/DriverApplication";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/driver/history" element={<DriverProvider><div className="theme-driver contents"><DriverHistory /></div></DriverProvider>} />
           <Route path="/driver/ratings" element={<DriverProvider><div className="theme-driver contents"><DriverRatings /></div></DriverProvider>} />
           <Route path="/driver/settings" element={<DriverProvider><div className="theme-driver contents"><DriverSettings /></div></DriverProvider>} />
+          <Route path="/driver/apply" element={<DriverApplication />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

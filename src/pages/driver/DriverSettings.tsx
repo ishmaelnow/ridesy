@@ -6,7 +6,7 @@ const items = [
   { icon: Bell, label: "Notifications", value: "Enabled" },
   { icon: Shield, label: "Documents", value: "Verified" },
   { icon: HelpCircle, label: "Support", value: "" },
-  { icon: LogOut, label: "Switch to Rider", value: "", path: "/rider" },
+  
 ];
 
 export default function DriverSettings() {
@@ -25,7 +25,7 @@ export default function DriverSettings() {
         {items.map((item) => (
           <button
             key={item.label}
-            onClick={() => item.path && navigate(item.path)}
+            onClick={() => {}}
             className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:bg-secondary/60 transition-colors"
           >
             <item.icon className="w-5 h-5 text-muted-foreground" />
