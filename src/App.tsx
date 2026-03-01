@@ -28,30 +28,45 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <RideProvider>
-          <DriverProvider>
-            <Routes>
-              {/* Role selection */}
-              <Route path="/" element={<RoleSelect />} />
-              {/* Rider routes */}
-              <Route path="/rider" element={<Index />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/wallet" element={<Wallet />} />
-              <Route path="/rides" element={<RideHistory />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/saved-places" element={<SavedPlaces />} />
-              {/* Driver routes */}
-              <Route path="/driver" element={<DriverDashboard />} />
-              <Route path="/driver/earnings" element={<DriverEarnings />} />
-              <Route path="/driver/history" element={<DriverHistory />} />
-              <Route path="/driver/ratings" element={<DriverRatings />} />
-              <Route path="/driver/settings" element={<DriverSettings />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </DriverProvider>
-        </RideProvider>
+        <Routes>
+          {/* Role selection */}
+          <Route path="/" element={<RoleSelect />} />
+
+          {/* Rider routes — wrapped in RideProvider, blue theme */}
+          <Route
+            path="/rider"
+            element={
+              <RideProvider>
+                <Index />
+              </RideProvider>
+            }
+          />
+          <Route path="/profile" element={<RideProvider><Profile /></RideProvider>} />
+          <Route path="/wallet" element={<RideProvider><Wallet /></RideProvider>} />
+          <Route path="/rides" element={<RideProvider><RideHistory /></RideProvider>} />
+          <Route path="/settings" element={<RideProvider><Settings /></RideProvider>} />
+          <Route path="/chat" element={<RideProvider><Chat /></RideProvider>} />
+          <Route path="/notifications" element={<RideProvider><Notifications /></RideProvider>} />
+          <Route path="/saved-places" element={<RideProvider><SavedPlaces /></RideProvider>} />
+
+          {/* Driver routes — wrapped in DriverProvider, green theme */}
+          <Route
+            path="/driver"
+            element={
+              <DriverProvider>
+                <div className="theme-driver contents">
+                  <DriverDashboard />
+                </div>
+              </DriverProvider>
+            }
+          />
+          <Route path="/driver/earnings" element={<DriverProvider><div className="theme-driver contents"><DriverEarnings /></div></DriverProvider>} />
+          <Route path="/driver/history" element={<DriverProvider><div className="theme-driver contents"><DriverHistory /></div></DriverProvider>} />
+          <Route path="/driver/ratings" element={<DriverProvider><div className="theme-driver contents"><DriverRatings /></div></DriverProvider>} />
+          <Route path="/driver/settings" element={<DriverProvider><div className="theme-driver contents"><DriverSettings /></div></DriverProvider>} />
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

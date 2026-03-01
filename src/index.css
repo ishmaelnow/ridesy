@@ -15,7 +15,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 15% 10%;
 
-    --primary: 152 70% 40%;
+    --primary: 220 80% 50%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 94%;
@@ -32,24 +32,34 @@
 
     --border: 220 14% 90%;
     --input: 220 14% 90%;
-    --ring: 152 70% 40%;
+    --ring: 220 80% 50%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 0 0% 99%;
     --sidebar-foreground: 220 15% 20%;
-    --sidebar-primary: 152 70% 40%;
+    --sidebar-primary: 220 80% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 95%;
     --sidebar-accent-foreground: 220 15% 20%;
     --sidebar-border: 220 14% 90%;
-    --sidebar-ring: 152 70% 40%;
+    --sidebar-ring: 220 80% 50%;
 
     /* Custom tokens */
     --surface: 220 14% 96%;
     --surface-foreground: 220 15% 15%;
     --success: 152 70% 40%;
     --warning: 38 92% 50%;
+    --ride-accent: 220 80% 50%;
+  }
+
+  /* Driver app theme — green accent */
+  .theme-driver {
+    --primary: 152 70% 40%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 152 70% 40%;
+    --sidebar-primary: 152 70% 40%;
+    --sidebar-ring: 152 70% 40%;
     --ride-accent: 152 70% 40%;
   }
 }
