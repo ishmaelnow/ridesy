@@ -161,8 +161,8 @@ export default function DriverEarnings() {
               <span className="text-sm font-semibold text-foreground">${earnings.trips > 0 ? (earnings.month / earnings.trips).toFixed(2) : "0.00"}</span>
             </div>
             <div className="flex items-center justify-between bg-card rounded-xl px-4 py-3 border border-border">
-              <span className="text-sm text-muted-foreground">Online Hours</span>
-              <span className="text-sm font-semibold text-foreground">38h</span>
+              <span className="text-sm text-muted-foreground">Avg. per Trip</span>
+              <span className="text-sm font-semibold text-foreground">${earnings.trips > 0 ? (earnings.month / earnings.trips).toFixed(2) : "0.00"}</span>
             </div>
           </div>
         </div>
