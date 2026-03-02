@@ -5,7 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:rider": "vite",
+    "dev:driver": "vite --config vite.driver.config.ts",
     "build": "vite build",
+    "build:rider": "vite build",
+    "build:driver": "vite build --config vite.driver.config.ts",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
