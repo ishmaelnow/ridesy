@@ -30,6 +30,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Application | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
+  const [rejectTarget, setRejectTarget] = useState<Application | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     if (!hasRole("admin")) {
@@ -46,6 +48,22 @@ export default function AdminDashboard() {
       .order("created_at", { ascending: false });
     if (!error) setApps(data ?? []);
     setLoading(false);
+  };
+
+  const openReject = (app: Application) => {
+    setRejectTarget(app);
+    setRejectReason("");
+  };
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return;
+    if (!rejectReason.trim()) {
+      toast.error("Please enter a rejection reason");
+      return;
+    }
+    await updateStatus(rejectTarget.id, "rejected", rejectReason.trim());
+    setRejectTarget(null);
+    setSelected(null);
   };
 
   const updateStatus = async (id: string, status: "approved" | "rejected", reason?: string) => {
@@ -161,7 +179,7 @@ export default function AdminDashboard() {
                       <Check className="w-3.5 h-3.5" /> Approve
                     </button>
                     <button
-                      onClick={() => updateStatus(app.id, "rejected", "Does not meet requirements")}
+                      onClick={() => openReject(app)}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium"
                     >
                       <X className="w-3.5 h-3.5" /> Reject
@@ -173,6 +191,56 @@ export default function AdminDashboard() {
           ))
         )}
       </div>
+
+      {/* Rejection reason modal */}
+      <AnimatePresence>
+        {rejectTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] bg-black/50 flex items-end"
+            onClick={() => setRejectTarget(null)}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full bg-background rounded-t-2xl p-5 space-y-4"
+            >
+              <h2 className="text-base font-semibold text-foreground">Reject Application</h2>
+              <p className="text-sm text-muted-foreground">{rejectTarget.full_name} — {rejectTarget.vehicle_year} {rejectTarget.vehicle_make} {rejectTarget.vehicle_model}</p>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-1.5 block">Reason for rejection</label>
+                <textarea
+                  className="w-full rounded-xl border border-border bg-secondary px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  rows={3}
+                  placeholder="e.g. Expired license, incomplete documents..."
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setRejectTarget(null)}
+                  className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmReject}
+                  disabled={!rejectReason.trim()}
+                  className="flex-1 py-3 rounded-xl bg-destructive text-destructive-foreground text-sm font-semibold disabled:opacity-40"
+                >
+                  Confirm Reject
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Detail modal */}
       <AnimatePresence>
@@ -221,7 +289,7 @@ export default function AdminDashboard() {
                     Approve
                   </button>
                   <button
-                    onClick={() => updateStatus(selected.id, "rejected", "Does not meet requirements")}
+                    onClick={() => openReject(selected)}
                     className="flex-1 py-3 rounded-xl bg-destructive text-destructive-foreground font-semibold text-sm"
                   >
                     Reject
