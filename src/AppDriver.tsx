@@ -17,7 +17,6 @@ import DriverRatings from "./pages/driver/DriverRatings";
 import DriverSettings from "./pages/driver/DriverSettings";
 import DriverApplication from "./pages/driver/DriverApplication";
 import ApplicationStatus from "./pages/driver/ApplicationStatus";
-import AdminDashboard from "./pages/admin/AdminDashboard";
 import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
@@ -55,9 +54,6 @@ const AppDriver = () => (
             <Route path="/driver/chat"               element={<DriverRoute><Chat /></DriverRoute>}           />
             <Route path="/driver/apply"              element={<ProtectedRoute redirectTo="/auth?role=driver"><DriverApplication /></ProtectedRoute>} />
             <Route path="/driver/application-status" element={<ProtectedRoute redirectTo="/auth?role=driver"><ApplicationStatus /></ProtectedRoute>} />
-
-            {/* Admin */}
-            <Route path="/admin" element={<ProtectedRoute redirectTo="/auth"><AdminDashboard /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
