@@ -15,6 +15,7 @@ export default function DriverEarnings() {
   const [payoutLoading, setPayoutLoading] = useState(false);
   const [stripeAccount, setStripeAccount] = useState<{ stripe_account_id: string; onboarding_complete: boolean } | null>(null);
   const [connectSuccess, setConnectSuccess] = useState(false);
+  const [completionRate, setCompletionRate] = useState<number | null>(null);
 
   useEffect(() => {
     if (searchParams.get("connect") === "complete") {
@@ -42,6 +43,21 @@ export default function DriverEarnings() {
   };
 
   useEffect(() => { fetchStripeAccount(); }, [user]);
+
+  // Calculate completion rate from real ride data
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("rides")
+      .select("status")
+      .eq("driver_id", user.id)
+      .in("status", ["completed", "cancelled"])
+      .then(({ data }) => {
+        if (!data || data.length === 0) { setCompletionRate(null); return; }
+        const completed = data.filter((r) => r.status === "completed").length;
+        setCompletionRate(Math.round((completed / data.length) * 100));
+      });
+  }, [user]);
 
   const handleConnectOnboarding = async () => {
     setConnectLoading(true);
@@ -162,7 +178,7 @@ export default function DriverEarnings() {
             </div>
             <div className="flex items-center justify-between bg-card rounded-xl px-4 py-3 border border-border">
               <span className="text-sm text-muted-foreground">Completion Rate</span>
-              <span className="text-sm font-semibold text-foreground">{earnings.trips > 0 ? "98%" : "—"}</span>
+              <span className="text-sm font-semibold text-foreground">{completionRate !== null ? `${completionRate}%` : "—"}</span>
             </div>
           </div>
         </div>
