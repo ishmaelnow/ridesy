@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useDriver } from "@/contexts/DriverContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   X, LayoutDashboard, DollarSign, Clock, Star, Settings, Car,
 } from "lucide-react";
@@ -22,6 +23,9 @@ interface Props {
 export default function DriverMenu({ open, onClose }: Props) {
   const navigate = useNavigate();
   const { rating, earnings } = useDriver();
+  const { user } = useAuth();
+  const displayName = user?.user_metadata?.full_name || user?.email || "Driver";
+  const initial = displayName.charAt(0).toUpperCase();
 
   const handleClick = (item: (typeof menuItems)[0]) => {
     navigate(item.path);
@@ -58,10 +62,10 @@ export default function DriverMenu({ open, onClose }: Props) {
               </div>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
-                  A
+                  {initial}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Ahmed Hassan</p>
+                  <p className="text-sm font-semibold text-foreground">{displayName}</p>
                   <div className="flex items-center gap-1">
                     <Star className="w-3 h-3 text-warning fill-warning" />
                     <span className="text-xs text-muted-foreground">{rating} rating</span>

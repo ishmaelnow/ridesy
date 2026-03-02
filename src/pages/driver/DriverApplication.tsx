@@ -186,12 +186,12 @@ export default function DriverApplication() {
                     <label className={uploadBtnClass(!!data.idFrontFile)}>
                       <Camera className="w-4 h-4" />
                       {data.idFrontFile ? "Front ✓" : "Front Side"}
-                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => update({ idFrontFile: e.target.files?.[0] || null })} />
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => update({ idFrontFile: e.target.files?.[0] || null })} />
                     </label>
                     <label className={uploadBtnClass(!!data.idBackFile)}>
                       <Camera className="w-4 h-4" />
                       {data.idBackFile ? "Back ✓" : "Back Side"}
-                      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => update({ idBackFile: e.target.files?.[0] || null })} />
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => update({ idBackFile: e.target.files?.[0] || null })} />
                     </label>
                   </div>
                 </div>
@@ -201,7 +201,7 @@ export default function DriverApplication() {
                   <label className={`${uploadBtnClass(!!data.licenseFile)} mt-3 w-full justify-center`}>
                     <Camera className="w-4 h-4" />
                     {data.licenseFile ? "License Uploaded ✓" : "Take License Photo"}
-                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => update({ licenseFile: e.target.files?.[0] || null })} />
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => update({ licenseFile: e.target.files?.[0] || null })} />
                   </label>
                 </div>
               </div>
@@ -219,7 +219,7 @@ export default function DriverApplication() {
                 <label className={`${uploadBtnClass(!!data.insuranceFile)} w-full justify-center`}>
                   <Camera className="w-4 h-4" />
                   {data.insuranceFile ? "Insurance Doc ✓" : "Capture Insurance Document"}
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => update({ insuranceFile: e.target.files?.[0] || null })} />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => update({ insuranceFile: e.target.files?.[0] || null })} />
                 </label>
               </div>
             )}
@@ -260,7 +260,7 @@ export default function DriverApplication() {
                 <label className={`${uploadBtnClass(!!data.vehiclePhotoFile)} w-full justify-center`}>
                   <Camera className="w-4 h-4" />
                   {data.vehiclePhotoFile ? "Vehicle Photo ✓" : "Take Vehicle Photo"}
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => update({ vehiclePhotoFile: e.target.files?.[0] || null })} />
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => update({ vehiclePhotoFile: e.target.files?.[0] || null })} />
                 </label>
               </div>
             )}
