@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "vite",
     "dev:rider": "vite",
-    "dev:driver": "vite --config vite.driver.config.ts",
+    "dev:driver": "VITE_APP_MODE=driver vite",
     "build": "vite build",
     "build:rider": "vite build",
-    "build:driver": "vite build --config vite.driver.config.ts",
+    "build:driver": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
