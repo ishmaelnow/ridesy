@@ -7,7 +7,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const VALID_AMOUNTS = [10, 25, 50, 100];
+const MIN_AMOUNT = 5;
+const MAX_AMOUNT = 500;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -27,7 +28,11 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
 
     const { amount } = await req.json();
-    if (!VALID_AMOUNTS.includes(Number(amount))) throw new Error("Invalid top-up amount");
+    const numAmount = Number(amount);
+    if (!Number.isFinite(numAmount) || numAmount < MIN_AMOUNT || numAmount > MAX_AMOUNT) {
+      throw new Error(`Amount must be between $${MIN_AMOUNT} and $${MAX_AMOUNT}`);
+    }
+    const cents = Math.round(numAmount * 100);
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
@@ -45,8 +50,8 @@ serve(async (req) => {
       line_items: [{
         price_data: {
           currency: "usd",
-          product_data: { name: `Wallet Top-Up $${amount}` },
-          unit_amount: Number(amount) * 100,
+          product_data: { name: `Wallet Top-Up` },
+          unit_amount: cents,
         },
         quantity: 1,
       }],
