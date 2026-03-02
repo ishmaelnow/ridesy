@@ -5,19 +5,17 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRide } from "@/contexts/RideContext";
+import { useAuth } from "@/contexts/AuthContext";
 
-const menuItems = [
-  { icon: User, label: "Profile", path: "/profile" },
-  { icon: Bell, label: "Notifications", path: "/notifications" },
-  { icon: Wallet, label: "Wallet", path: "/wallet" },
-  { icon: ClipboardList, label: "My Rides", path: "/rides" },
-  { icon: MapPin, label: "Saved Places", path: "/saved-places" },
-  { icon: Settings, label: "Settings", path: "/settings" },
-  
-  { icon: Info, label: "About", path: "/about" },
-  { icon: MessageSquare, label: "Support", path: "/support" },
-  { icon: Share2, label: "Share App", path: null },
-  { icon: LogOut, label: "Logout", path: null },
+const navItems = [
+  { icon: User,          label: "Profile",        path: "/profile"       },
+  { icon: Bell,          label: "Notifications",  path: "/notifications" },
+  { icon: Wallet,        label: "Wallet",         path: "/wallet"        },
+  { icon: ClipboardList, label: "My Rides",       path: "/rides"         },
+  { icon: MapPin,        label: "Saved Places",   path: "/saved-places"  },
+  { icon: Settings,      label: "Settings",       path: "/settings"      },
+  { icon: Info,          label: "About",          path: "/about"         },
+  { icon: MessageSquare, label: "Support",        path: "/support"       },
 ];
 
 interface Props {
@@ -26,15 +24,32 @@ interface Props {
 }
 
 export default function HamburgerMenu({ open, onClose }: Props) {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const { walletBalance } = useRide();
+  const { user, signOut } = useAuth();
 
-  const handleClick = (item: typeof menuItems[0]) => {
-    if (item.path) {
-      navigate(item.path);
+  const handleNav = (path: string) => {
+    navigate(path);
+    onClose();
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({ title: "RideApp", url: window.location.origin }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(window.location.origin);
     }
     onClose();
   };
+
+  const handleLogout = async () => {
+    onClose();
+    await signOut();
+    navigate("/");
+  };
+
+  const displayName = user?.user_metadata?.full_name || "Rider";
+  const displayEmail = user?.email || "";
 
   return (
     <AnimatePresence>
@@ -67,28 +82,44 @@ export default function HamburgerMenu({ open, onClose }: Props) {
                   <X className="w-5 h-5 text-muted-foreground" />
                 </button>
               </div>
-              <p className="text-base font-semibold text-foreground">Rider</p>
-              <p className="text-sm text-muted-foreground">rider@example.com</p>
+              <p className="text-base font-semibold text-foreground truncate">{displayName}</p>
+              <p className="text-sm text-muted-foreground truncate">{displayEmail}</p>
               <div className="mt-3 flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-primary">${walletBalance.toFixed(2)}</span>
               </div>
             </div>
 
-            {/* Menu Items */}
+            {/* Nav items */}
             <div className="flex-1 overflow-y-auto py-2">
-              {menuItems.map((item) => (
+              {navItems.map((item) => (
                 <button
                   key={item.label}
-                  onClick={() => handleClick(item)}
-                  className={`w-full flex items-center gap-3 px-5 py-3 hover:bg-secondary/60 transition-colors ${
-                    item.label === "Logout" ? "text-destructive" : "text-foreground"
-                  }`}
+                  onClick={() => handleNav(item.path)}
+                  className="w-full flex items-center gap-3 px-5 py-3 hover:bg-secondary/60 transition-colors text-foreground"
                 >
                   <item.icon className="w-5 h-5" />
                   <span className="text-sm">{item.label}</span>
                 </button>
               ))}
+
+              {/* Share App */}
+              <button
+                onClick={handleShare}
+                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-secondary/60 transition-colors text-foreground"
+              >
+                <Share2 className="w-5 h-5" />
+                <span className="text-sm">Share App</span>
+              </button>
+
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-secondary/60 transition-colors text-destructive"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="text-sm">Logout</span>
+              </button>
             </div>
 
             <div className="px-5 py-4 border-t border-border">

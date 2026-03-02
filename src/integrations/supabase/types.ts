@@ -149,6 +149,38 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          created_at: string
+          id: string
+          ride_id: string
+          sender_id: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ride_id: string
+          sender_id: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ride_id?: string
+          sender_id?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rides: {
         Row: {
           cancelled_at: string | null
@@ -156,6 +188,8 @@ export type Database = {
           created_at: string
           distance: string | null
           driver_id: string | null
+          driver_lat: number | null
+          driver_lng: number | null
           dropoff_address: string
           dropoff_lat: number
           dropoff_lng: number
@@ -178,6 +212,8 @@ export type Database = {
           created_at?: string
           distance?: string | null
           driver_id?: string | null
+          driver_lat?: number | null
+          driver_lng?: number | null
           dropoff_address: string
           dropoff_lat: number
           dropoff_lng: number
@@ -200,6 +236,8 @@ export type Database = {
           created_at?: string
           distance?: string | null
           driver_id?: string | null
+          driver_lat?: number | null
+          driver_lng?: number | null
           dropoff_address?: string
           dropoff_lat?: number
           dropoff_lng?: number

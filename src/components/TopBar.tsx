@@ -1,4 +1,5 @@
 import { Menu, Bell } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useRide } from "@/contexts/RideContext";
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
 
 export default function TopBar({ onMenuOpen }: Props) {
   const { notifications } = useRide();
+  const navigate = useNavigate();
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
@@ -19,7 +21,10 @@ export default function TopBar({ onMenuOpen }: Props) {
           <Menu className="w-5 h-5 text-foreground" />
         </button>
 
-        <button className="w-11 h-11 rounded-full glass flex items-center justify-center shadow-lg relative active:scale-95 transition-transform">
+        <button
+          onClick={() => navigate("/notifications")}
+          className="w-11 h-11 rounded-full glass flex items-center justify-center shadow-lg relative active:scale-95 transition-transform"
+        >
           <Bell className="w-5 h-5 text-foreground" />
           {unread > 0 && (
             <div className="absolute -top-0.5 -right-0.5 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
