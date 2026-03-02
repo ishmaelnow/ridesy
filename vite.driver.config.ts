@@ -1,11 +1,27 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import fs from "fs";
 import { VitePWA } from "vite-plugin-pwa";
+
+// Renames dist-driver/index-driver.html → dist-driver/index.html
+// so Netlify's "/* /index.html 200" redirect rule works correctly.
+function renameDriverIndex(): Plugin {
+  return {
+    name: "rename-driver-index",
+    closeBundle() {
+      const outDir = path.resolve(__dirname, "dist-driver");
+      const src = path.join(outDir, "index-driver.html");
+      const dest = path.join(outDir, "index.html");
+      if (fs.existsSync(src)) fs.renameSync(src, dest);
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
     react(),
+    renameDriverIndex(),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt"],
