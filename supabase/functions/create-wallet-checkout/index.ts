@@ -7,12 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const PRICE_MAP: Record<string, string> = {
-  "10": "price_1T6HKPDuPNsKOH5BhxMjzXPz",
-  "25": "price_1T6HKjDuPNsKOH5BwhW5Jfvh",
-  "50": "price_1T6HLKDuPNsKOH5BFQhH3Rps",
-  "100": "price_1T6HLjDuPNsKOH5BIvQOoD0W",
-};
+const VALID_AMOUNTS = [10, 25, 50, 100];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -32,8 +27,7 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated");
 
     const { amount } = await req.json();
-    const priceId = PRICE_MAP[String(amount)];
-    if (!priceId) throw new Error("Invalid top-up amount");
+    if (!VALID_AMOUNTS.includes(Number(amount))) throw new Error("Invalid top-up amount");
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
@@ -48,7 +42,14 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{
+        price_data: {
+          currency: "usd",
+          product_data: { name: `Wallet Top-Up $${amount}` },
+          unit_amount: Number(amount) * 100,
+        },
+        quantity: 1,
+      }],
       mode: "payment",
       success_url: `${req.headers.get("origin")}/wallet?success=true&amount=${amount}`,
       cancel_url: `${req.headers.get("origin")}/wallet?canceled=true`,
