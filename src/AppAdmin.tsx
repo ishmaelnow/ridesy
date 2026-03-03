@@ -21,7 +21,7 @@ const AppAdmin = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/admin" element={<ProtectedRoute redirectTo="/auth"><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute redirectTo="/auth?role=admin"><AdminDashboard /></ProtectedRoute>} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

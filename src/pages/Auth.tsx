@@ -18,6 +18,7 @@ export default function Auth() {
   const { signIn, signUp } = useAuth();
 
   const isDriver = role === "driver";
+  const isAdmin = role === "admin";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +37,7 @@ export default function Auth() {
       if (error) {
         toast.error(error);
       } else {
-        navigate(isDriver ? "/driver" : "/rider");
+        navigate(isAdmin ? "/admin" : isDriver ? "/driver" : "/rider");
       }
     }
     setSubmitting(false);
@@ -68,15 +69,15 @@ export default function Auth() {
               )}
             </div>
             <h1 className="text-2xl font-bold text-foreground">
-              {mode === "login" ? "Welcome back" : "Create account"}
+              {isAdmin ? "Admin Login" : mode === "login" ? "Welcome back" : "Create account"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {isDriver ? "Driver" : "Rider"} • {mode === "login" ? "Sign in to continue" : "Get started today"}
+              {isAdmin ? "Sign in to continue" : isDriver ? "Driver" : "Rider"} • {isAdmin || mode === "login" ? "Sign in to continue" : "Get started today"}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3">
-            {mode === "signup" && (
+            {mode === "signup" && !isAdmin && (
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
@@ -132,15 +133,17 @@ export default function Auth() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground">
-            {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button
-              onClick={() => setMode(mode === "login" ? "signup" : "login")}
-              className="text-primary font-medium"
-            >
-              {mode === "login" ? "Sign Up" : "Sign In"}
-            </button>
-          </p>
+          {!isAdmin && (
+            <p className="text-center text-sm text-muted-foreground">
+              {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+              <button
+                onClick={() => setMode(mode === "login" ? "signup" : "login")}
+                className="text-primary font-medium"
+              >
+                {mode === "login" ? "Sign Up" : "Sign In"}
+              </button>
+            </p>
+          )}
         </motion.div>
       </div>
     </div>
