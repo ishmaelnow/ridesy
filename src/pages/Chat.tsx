@@ -1,4 +1,5 @@
 import { ArrowLeft, Send, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -104,7 +105,7 @@ export default function ChatPage() {
     });
 
     if (error) {
-      console.error("Failed to send message:", error);
+      toast.error("Message failed to send");
       setInput(text); // restore on error
     }
 
@@ -130,7 +131,7 @@ export default function ChatPage() {
           <p className="text-sm font-semibold text-foreground">
             {isDriverChat ? "Rider" : driverName}
           </p>
-          <p className="text-xs text-primary">Online</p>
+          <p className="text-xs text-muted-foreground">Active ride</p>
         </div>
       </div>
 

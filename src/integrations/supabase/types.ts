@@ -119,13 +119,45 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          rider_id: string
+          title: string
+          type: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          rider_id: string
+          title: string
+          type: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          rider_id?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           full_name: string
           id: string
+          notifications_enabled: boolean | null
           phone: string | null
+          sound_enabled: boolean | null
           updated_at: string
           user_id: string
         }
@@ -134,7 +166,9 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          notifications_enabled?: boolean | null
           phone?: string | null
+          sound_enabled?: boolean | null
           updated_at?: string
           user_id: string
         }
@@ -143,9 +177,41 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          notifications_enabled?: boolean | null
           phone?: string | null
+          sound_enabled?: boolean | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      saved_places: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          label: string
+          lat: number
+          lng: number
+          rider_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          label: string
+          lat: number
+          lng: number
+          rider_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          label?: string
+          lat?: number
+          lng?: number
+          rider_id?: string
         }
         Relationships: []
       }
@@ -195,7 +261,10 @@ export type Database = {
           dropoff_lng: number
           duration: string | null
           fare: number | null
+          feedback: string | null
+          final_fare: number | null
           id: string
+          payment_status: string | null
           pickup_address: string
           pickup_lat: number
           pickup_lng: number
@@ -219,7 +288,10 @@ export type Database = {
           dropoff_lng: number
           duration?: string | null
           fare?: number | null
+          feedback?: string | null
+          final_fare?: number | null
           id?: string
+          payment_status?: string | null
           pickup_address: string
           pickup_lat: number
           pickup_lng: number
@@ -243,7 +315,10 @@ export type Database = {
           dropoff_lng?: number
           duration?: string | null
           fare?: number | null
+          feedback?: string | null
+          final_fare?: number | null
           id?: string
+          payment_status?: string | null
           pickup_address?: string
           pickup_lat?: number
           pickup_lng?: number

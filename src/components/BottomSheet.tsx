@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Briefcase, MapPin, Search, Clock } from "lucide-react";
+import { Home, Briefcase, Star, MapPin, Search, Clock } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import DestinationSearch from "./ride/DestinationSearch";
 import FareEstimate from "./ride/FareEstimate";
@@ -8,13 +8,17 @@ import DriverCard from "./ride/DriverCard";
 import RideActive from "./ride/RideActive";
 import RideComplete from "./ride/RideComplete";
 
-const savedPlaces = [
-  { icon: Home, label: "Home", address: "Set home address" },
-  { icon: Briefcase, label: "Work", address: "Set work address" },
-];
+function placeIcon(label: string) {
+  switch (label.toLowerCase()) {
+    case "home": return Home;
+    case "work": return Briefcase;
+    case "gym":  return Star;
+    default:     return MapPin;
+  }
+}
 
 function IdlePanel() {
-  const { setStatus, userLocation } = useRide();
+  const { setStatus, userLocation, savedPlaces, setRide } = useRide();
 
   return (
     <motion.div
@@ -35,24 +39,39 @@ function IdlePanel() {
         </div>
       </button>
 
-      {/* Saved Places */}
-      <div className="flex gap-3">
-        {savedPlaces.map((place) => (
-          <button
-            key={place.label}
-            onClick={() => setStatus("selecting_destination")}
-            className="flex-1 flex items-center gap-2.5 px-3 py-3 rounded-xl bg-secondary hover:bg-secondary/70 transition-colors"
-          >
-            <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0">
-              <place.icon className="w-4 h-4 text-foreground" />
-            </div>
-            <div className="text-left min-w-0">
-              <p className="text-sm font-medium text-foreground">{place.label}</p>
-              <p className="text-xs text-muted-foreground truncate">{place.address}</p>
-            </div>
-          </button>
-        ))}
-      </div>
+      {/* Saved Places — real data, up to 3 */}
+      {savedPlaces.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {savedPlaces.slice(0, 3).map((place) => {
+            const Icon = placeIcon(place.label);
+            return (
+              <button
+                key={place.id}
+                onClick={() => {
+                  if (place.lat !== 0 && place.lng !== 0) {
+                    setRide((prev) => ({
+                      ...prev,
+                      dropoff: { lat: place.lat, lng: place.lng, address: place.address },
+                    }));
+                    setStatus("fare_estimate");
+                  } else {
+                    setStatus("selecting_destination");
+                  }
+                }}
+                className="flex-shrink-0 flex items-center gap-2.5 px-3 py-3 rounded-xl bg-secondary hover:bg-secondary/70 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4 text-foreground" />
+                </div>
+                <div className="text-left min-w-0 max-w-[100px]">
+                  <p className="text-sm font-medium text-foreground">{place.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{place.address}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Current Location */}
       {userLocation && (

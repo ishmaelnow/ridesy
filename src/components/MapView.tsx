@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
+import { Crosshair } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 
 export default function MapView({ showDriver }: { showDriver?: boolean }) {
@@ -202,11 +203,31 @@ export default function MapView({ showDriver }: { showDriver?: boolean }) {
     }
   }, [showDriver, driverLocation, status, mapReady]);
 
+  const handleRecenter = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (status === "ride_started" && driverLocation) {
+      map.setView([driverLocation.lat, driverLocation.lng], 15, { animate: true });
+    } else if (userPos) {
+      map.setView(userPos, 15, { animate: true });
+    }
+  }, [status, driverLocation, userPos]);
+
   return (
-    <div
-      ref={containerRef}
-      id="map-container"
-      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}
-    />
+    <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+      <div
+        ref={containerRef}
+        id="map-container"
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+      {/* Recenter button */}
+      <button
+        onClick={handleRecenter}
+        className="absolute bottom-[260px] right-4 z-10 w-11 h-11 rounded-full glass shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        style={{ zIndex: 10 }}
+      >
+        <Crosshair className="w-5 h-5 text-foreground" />
+      </button>
+    </div>
   );
 }

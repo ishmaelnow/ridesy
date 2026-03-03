@@ -1,10 +1,16 @@
 import { ArrowLeft, Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { useRide } from "@/contexts/RideContext";
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { notifications } = useRide();
+  const { notifications, markNotificationsRead } = useRide();
+
+  // Mark all as read when page is opened
+  useEffect(() => {
+    markNotificationsRead();
+  }, []);
 
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -26,8 +32,13 @@ export default function NotificationsPage() {
         ) : (
           <div className="space-y-2">
             {notifications.map((n) => (
-              <div key={n.id} className="flex gap-3 px-4 py-3 rounded-xl bg-secondary">
-                <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+              <div
+                key={n.id}
+                className={`flex gap-3 px-4 py-3 rounded-xl transition-colors ${
+                  n.read ? "bg-secondary/50" : "bg-secondary"
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.read ? "bg-muted-foreground/30" : "bg-primary"}`} />
                 <div>
                   <p className="text-sm font-medium text-foreground">{n.title}</p>
                   <p className="text-xs text-muted-foreground">{n.message}</p>

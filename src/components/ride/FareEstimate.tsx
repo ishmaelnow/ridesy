@@ -1,6 +1,7 @@
-import { ArrowLeft, Car, Zap, Users } from "lucide-react";
+import { ArrowLeft, Car, Zap, Users, Wallet, AlertTriangle } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const rideTypes = [
   { id: "standard", label: "Standard", icon: Car, multiplier: 1, eta: "4 min", desc: "Affordable rides" },
@@ -9,11 +10,14 @@ const rideTypes = [
 ];
 
 export default function FareEstimate() {
-  const { setStatus, ride, requestRide } = useRide();
+  const { setStatus, ride, requestRide, walletBalance } = useRide();
+  const navigate = useNavigate();
   const [selected, setSelected] = useState("standard");
 
   const selectedType = rideTypes.find((r) => r.id === selected)!;
-  const fare = (ride.fare * selectedType.multiplier).toFixed(2);
+  const fare = ride.fare * selectedType.multiplier;
+  const fareStr = fare.toFixed(2);
+  const insufficient = walletBalance < fare;
 
   return (
     <div className="space-y-4">
@@ -62,11 +66,40 @@ export default function FareEstimate() {
         ))}
       </div>
 
+      {/* Wallet / Payment row */}
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${insufficient ? "bg-destructive/10 border border-destructive/30" : "bg-secondary"}`}>
+        <Wallet className={`w-5 h-5 shrink-0 ${insufficient ? "text-destructive" : "text-muted-foreground"}`} />
+        <div className="flex-1">
+          <p className="text-xs text-muted-foreground">Pay from Wallet</p>
+          <p className={`text-sm font-medium ${insufficient ? "text-destructive" : "text-foreground"}`}>
+            Balance: ${walletBalance.toFixed(2)}
+          </p>
+        </div>
+        {insufficient && (
+          <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+        )}
+      </div>
+
+      {insufficient && (
+        <div className="space-y-2">
+          <p className="text-xs text-destructive text-center">
+            Insufficient balance — need ${(fare - walletBalance).toFixed(2)} more
+          </p>
+          <button
+            onClick={() => navigate("/wallet")}
+            className="w-full py-3 rounded-xl bg-secondary text-foreground font-medium text-sm active:scale-[0.98] transition-transform"
+          >
+            Top Up Wallet
+          </button>
+        </div>
+      )}
+
       <button
         onClick={requestRide}
-        className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform"
+        disabled={insufficient}
+        className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Request {selectedType.label} · ${fare}
+        Request {selectedType.label} · ${fareStr}
       </button>
     </div>
   );

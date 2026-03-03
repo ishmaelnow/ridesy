@@ -23,7 +23,7 @@ export interface Driver {
   id: string;
   name: string;
   photo: string;
-  rating: number;
+  rating: number | "New";
   car: string;
   plate: string;
   eta: number;
@@ -46,6 +46,14 @@ export interface Notification {
   read: boolean;
 }
 
+export interface SavedPlace {
+  id: string;
+  label: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
 interface RideContextType {
   status: RideStatus;
   setStatus: (s: RideStatus) => void;
@@ -57,11 +65,17 @@ interface RideContextType {
   setWalletBalance: React.Dispatch<React.SetStateAction<number>>;
   notifications: Notification[];
   addNotification: (n: Omit<Notification, "id" | "time">) => void;
+  markNotificationsRead: () => void;
   soundEnabled: boolean;
-  setSoundEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  setSoundEnabled: (v: boolean) => void;
+  notificationsEnabled: boolean;
+  setNotificationsEnabled: (v: boolean) => void;
   userLocation: { lat: number; lng: number; address: string } | null;
   driverLocation: { lat: number; lng: number } | null;
   activeRideId: string | null;
+  savedPlaces: SavedPlace[];
+  loadSavedPlaces: () => void;
+  paymentError: string | null;
 }
 
 const defaultRide: RideInfo = {
@@ -94,13 +108,91 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
   const [ride, setRide] = useState<RideInfo>(defaultRide);
   const [walletBalance, setWalletBalance] = useState(0);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabledState] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabledState] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number; address: string } | null>(null);
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeRideId, setActiveRideId] = useState<string | null>(null);
+  const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const prevStatusRef = useRef<RideStatus>("idle");
+  const paymentRef = useRef<(() => void) | null>(null);
+
+  // ─── Persist sound preference ─────────────────────────────────────────────
+  const setSoundEnabled = useCallback(async (v: boolean) => {
+    setSoundEnabledState(v);
+    if (!user) return;
+    await supabase
+      .from("profiles")
+      .update({ sound_enabled: v, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+  }, [user]);
+
+  // ─── Persist notifications preference ────────────────────────────────────
+  const setNotificationsEnabled = useCallback(async (v: boolean) => {
+    setNotificationsEnabledState(v);
+    if (!user) return;
+    await supabase
+      .from("profiles")
+      .update({ notifications_enabled: v, updated_at: new Date().toISOString() })
+      .eq("user_id", user.id);
+  }, [user]);
+
+  // ─── Load preferences + notifications from DB on mount ───────────────────
+  useEffect(() => {
+    if (!user) return;
+
+    // Load profile prefs
+    supabase
+      .from("profiles")
+      .select("sound_enabled, notifications_enabled")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          if (data.sound_enabled !== null) setSoundEnabledState(data.sound_enabled ?? true);
+          if (data.notifications_enabled !== null) setNotificationsEnabledState(data.notifications_enabled ?? true);
+        }
+      });
+
+    // Load recent notifications
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("rider_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        if (data) {
+          setNotifications(
+            data.map((n) => ({
+              id: n.id,
+              title: n.title,
+              message: n.body,
+              time: new Date(n.created_at),
+              read: n.read_at !== null,
+            }))
+          );
+        }
+      });
+  }, [user]);
+
+  // ─── Load saved places ────────────────────────────────────────────────────
+  const loadSavedPlaces = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("saved_places")
+      .select("*")
+      .eq("rider_id", user.id)
+      .order("created_at", { ascending: true });
+    if (data) setSavedPlaces(data);
+  }, [user]);
+
+  useEffect(() => {
+    loadSavedPlaces();
+  }, [loadSavedPlaces]);
 
   // ─── Continuous rider location via watchPosition ───────────────────────────
   useEffect(() => {
@@ -185,13 +277,26 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
       .eq("user_id", driverId)
       .single();
 
+    // Compute real average rating from rides table
+    const { data: ratingData } = await supabase
+      .from("rides")
+      .select("rating_by_rider")
+      .eq("driver_id", driverId)
+      .not("rating_by_rider", "is", null);
+
+    let driverRating: number | "New" = "New";
+    if (ratingData && ratingData.length > 0) {
+      const sum = ratingData.reduce((acc, r) => acc + (r.rating_by_rider ?? 0), 0);
+      driverRating = Math.round((sum / ratingData.length) * 10) / 10;
+    }
+
     setRide((prev) => ({
       ...prev,
       driver: {
         id:     driverId,
         name:   app?.full_name || profile?.full_name || "Driver",
         photo:  "",
-        rating: 4.9,
+        rating: driverRating,
         car:    app
           ? `${app.vehicle_year || ""} ${app.vehicle_make || ""} ${app.vehicle_model || ""}`.trim()
           : "Vehicle",
@@ -219,18 +324,35 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
     } catch { /* AudioContext not available */ }
   }, [soundEnabled]);
 
-  // ─── Notifications helper ──────────────────────────────────────────────────
+  // ─── Notifications helper — persists to DB ────────────────────────────────
   const addNotification = useCallback((n: Omit<Notification, "id" | "time">) => {
-    setNotifications((prev) => [
-      { ...n, id: crypto.randomUUID(), time: new Date() },
-      ...prev,
-    ]);
-  }, []);
+    const newNotif: Notification = { ...n, id: crypto.randomUUID(), time: new Date() };
+    setNotifications((prev) => [newNotif, ...prev]);
+
+    if (user) {
+      supabase.from("notifications").insert({
+        rider_id: user.id,
+        type:     "ride",
+        title:    n.title,
+        body:     n.message,
+      }).then(() => {/* fire and forget */});
+    }
+  }, [user]);
+
+  // ─── Mark all notifications read ─────────────────────────────────────────
+  const markNotificationsRead = useCallback(async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    if (!user) return;
+    await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("rider_id", user.id)
+      .is("read_at", null);
+  }, [user]);
 
   // ─── Fire sound + visual notification on status change ────────────────────
   useEffect(() => {
     if (status === prevStatusRef.current) return;
-    const prev = prevStatusRef.current;
     prevStatusRef.current = status;
 
     switch (status) {
@@ -260,6 +382,7 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         break;
       case "ride_completed":
         playSound(520);
+        paymentRef.current?.();
         addNotification({
           title:   "Ride Complete",
           message: `Your fare of $${ride.fare.toFixed(2)} has been deducted from your wallet`,
@@ -270,6 +393,50 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         break;
     }
   }, [status]);   // intentionally omit playSound/addNotification/ride to avoid loop
+
+  // ─── Payment on ride completion ────────────────────────────────────────────
+  // Keep a ref so the status-change effect can call the latest version
+  const handlePaymentOnCompletion = useCallback(async () => {
+    if (!user || !activeRideId || !ride.fare) return;
+
+    const { data: bal } = await supabase
+      .from("wallet_balances")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!bal) return;
+
+    if (bal.balance < ride.fare) {
+      setPaymentError(`Insufficient balance. Fare: $${ride.fare.toFixed(2)}, Balance: $${bal.balance.toFixed(2)}`);
+      return;
+    }
+
+    const newBalance = bal.balance - ride.fare;
+
+    await Promise.all([
+      supabase.from("wallet_transactions").insert({
+        user_id:     user.id,
+        type:        "ride_payment",
+        amount:      ride.fare,
+        description: `Ride to ${ride.dropoff?.address || "destination"}`,
+        status:      "completed",
+        ride_id:     activeRideId,
+      }),
+      supabase
+        .from("wallet_balances")
+        .update({ balance: newBalance, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id),
+      supabase
+        .from("rides")
+        .update({ payment_status: "paid", final_fare: ride.fare })
+        .eq("id", activeRideId),
+    ]);
+
+    setWalletBalance(newBalance);
+  }, [user, activeRideId, ride.fare, ride.dropoff]);
+
+  useEffect(() => { paymentRef.current = handlePaymentOnCompletion; }, [handlePaymentOnCompletion]);
 
   // ─── Realtime ride subscription ────────────────────────────────────────────
   useEffect(() => {
@@ -382,6 +549,7 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
     setActiveRideId(null);
     setStatus("idle");
     setRide(defaultRide);
+    setPaymentError(null);
   }, [activeRideId]);
 
   return (
@@ -390,10 +558,13 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         status, setStatus, ride, setRide,
         requestRide, cancelRide,
         walletBalance, setWalletBalance,
-        notifications, addNotification,
+        notifications, addNotification, markNotificationsRead,
         soundEnabled, setSoundEnabled,
+        notificationsEnabled, setNotificationsEnabled,
         userLocation, driverLocation,
         activeRideId,
+        savedPlaces, loadSavedPlaces,
+        paymentError,
       }}
     >
       {children}
