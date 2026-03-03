@@ -62,6 +62,8 @@ export function DriverProvider({ children }: { children: React.ReactNode }) {
   const [rating] = useState(4.92);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const activeRideIdRef = useRef<string | null>(null);
 
   // Load earnings from completed rides
   useEffect(() => {
@@ -211,6 +213,43 @@ export function DriverProvider({ children }: { children: React.ReactNode }) {
       channel.unsubscribe();
     };
   }, [activeRideId]);
+
+  // Keep activeRideIdRef in sync so the watchPosition callback always has the latest value
+  useEffect(() => {
+    activeRideIdRef.current = activeRideId;
+  }, [activeRideId]);
+
+  // ─── Continuous GPS → writes driver_lat/driver_lng to active ride ──────────
+  useEffect(() => {
+    const activeStatuses: DriverStatus[] = ["heading_to_pickup", "at_pickup", "ride_in_progress"];
+    if (!activeStatuses.includes(driverStatus) || !navigator.geolocation) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      return;
+    }
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const rideId = activeRideIdRef.current;
+        if (!rideId) return;
+        await supabase
+          .from("rides")
+          .update({ driver_lat: pos.coords.latitude, driver_lng: pos.coords.longitude })
+          .eq("id", rideId);
+      },
+      () => { /* permission denied */ },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [driverStatus]);
 
   const goOnline = useCallback(() => {
     setDriverStatus("online");
