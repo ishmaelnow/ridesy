@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Car, User, ShieldCheck } from "lucide-react";
+import { Car, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -66,18 +66,6 @@ export default function RoleSelect() {
             </div>
           </button>
 
-          {user && hasRole("admin") && (
-            <button onClick={() => navigate("/admin")}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-card border-2 border-border hover:border-primary transition-colors active:scale-[0.98]">
-              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                <ShieldCheck className="w-7 h-7 text-primary" />
-              </div>
-              <div className="text-left">
-                <p className="text-base font-semibold text-foreground">Admin</p>
-                <p className="text-sm text-muted-foreground">Manage drivers & rides</p>
-              </div>
-            </button>
-          )}
         </div>
 
         {user && (
