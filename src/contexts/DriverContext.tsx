@@ -59,11 +59,26 @@ export function DriverProvider({ children }: { children: React.ReactNode }) {
   const [earnings, setEarnings] = useState<EarningsData>({ today: 0, week: 0, month: 0, trips: 0 });
   const [completedTrips, setCompletedTrips] = useState<RideRequest[]>([]);
   const [activeRideId, setActiveRideId] = useState<string | null>(null);
-  const [rating] = useState(4.92);
+  const [rating, setRating] = useState(0);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const activeRideIdRef = useRef<string | null>(null);
+
+  // Load real average rating from completed rides
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("rides")
+      .select("rating_by_rider")
+      .eq("driver_id", user.id)
+      .not("rating_by_rider", "is", null)
+      .then(({ data }) => {
+        if (!data || data.length === 0) return;
+        const avg = data.reduce((sum, r) => sum + (r.rating_by_rider ?? 0), 0) / data.length;
+        setRating(Math.round(avg * 100) / 100);
+      });
+  }, [user]);
 
   // Load earnings from completed rides
   useEffect(() => {

@@ -9,7 +9,7 @@ import { DriverProvider } from "@/contexts/DriverContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import RoleSelect from "./pages/RoleSelect";
 import Auth from "./pages/Auth";
-import Chat from "./pages/Chat";
+import DriverChat from "./pages/driver/DriverChat";
 import DriverDashboard from "./pages/driver/DriverDashboard";
 import DriverEarnings from "./pages/driver/DriverEarnings";
 import DriverHistory from "./pages/driver/DriverHistory";
@@ -51,7 +51,7 @@ const AppDriver = () => (
             <Route path="/driver/history"            element={<DriverRoute><DriverHistory /></DriverRoute>}  />
             <Route path="/driver/ratings"            element={<DriverRoute><DriverRatings /></DriverRoute>}  />
             <Route path="/driver/settings"           element={<DriverRoute><DriverSettings /></DriverRoute>} />
-            <Route path="/driver/chat"               element={<DriverRoute><Chat /></DriverRoute>}           />
+            <Route path="/driver/chat"               element={<DriverRoute><DriverChat /></DriverRoute>}     />
             <Route path="/driver/apply"              element={<ProtectedRoute redirectTo="/auth?role=driver"><DriverApplication /></ProtectedRoute>} />
             <Route path="/driver/application-status" element={<ProtectedRoute redirectTo="/auth?role=driver"><ApplicationStatus /></ProtectedRoute>} />
 
