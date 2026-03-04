@@ -1,4 +1,4 @@
-import { ArrowLeft, Car, Zap, Users, Wallet, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Car, Zap, Users, Wallet, CreditCard, AlertTriangle } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,14 +10,14 @@ const rideTypes = [
 ];
 
 export default function FareEstimate() {
-  const { setStatus, ride, requestRide, walletBalance } = useRide();
+  const { setStatus, ride, requestRide, walletBalance, paymentMethod, setPaymentMethod } = useRide();
   const navigate = useNavigate();
   const [selected, setSelected] = useState("standard");
 
   const selectedType = rideTypes.find((r) => r.id === selected)!;
   const fare = ride.fare * selectedType.multiplier;
   const fareStr = fare.toFixed(2);
-  const insufficient = walletBalance < fare;
+  const insufficient = paymentMethod === "wallet" && walletBalance < fare;
 
   return (
     <div className="space-y-4">
@@ -66,30 +66,51 @@ export default function FareEstimate() {
         ))}
       </div>
 
-      {/* Wallet / Payment row */}
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-xl ${insufficient ? "bg-destructive/10 border border-destructive/30" : "bg-secondary"}`}>
-        <Wallet className={`w-5 h-5 shrink-0 ${insufficient ? "text-destructive" : "text-muted-foreground"}`} />
-        <div className="flex-1">
-          <p className="text-xs text-muted-foreground">Pay from Wallet</p>
-          <p className={`text-sm font-medium ${insufficient ? "text-destructive" : "text-foreground"}`}>
-            Balance: ${walletBalance.toFixed(2)}
-          </p>
-        </div>
-        {insufficient && (
-          <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
-        )}
+      {/* Payment method selector */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setPaymentMethod("wallet")}
+          className={`flex-1 flex items-center gap-2 px-3 py-3 rounded-xl transition-all ${
+            paymentMethod === "wallet"
+              ? "bg-primary/10 border border-primary/30"
+              : "bg-secondary"
+          }`}
+        >
+          <Wallet className={`w-4 h-4 shrink-0 ${paymentMethod === "wallet" ? "text-primary" : "text-muted-foreground"}`} />
+          <div className="text-left">
+            <p className="text-xs font-medium text-foreground">Wallet</p>
+            <p className={`text-xs ${insufficient ? "text-destructive" : "text-muted-foreground"}`}>
+              ${walletBalance.toFixed(2)}
+            </p>
+          </div>
+          {insufficient && <AlertTriangle className="w-3.5 h-3.5 text-destructive ml-auto" />}
+        </button>
+        <button
+          onClick={() => setPaymentMethod("card")}
+          className={`flex-1 flex items-center gap-2 px-3 py-3 rounded-xl transition-all ${
+            paymentMethod === "card"
+              ? "bg-primary/10 border border-primary/30"
+              : "bg-secondary"
+          }`}
+        >
+          <CreditCard className={`w-4 h-4 shrink-0 ${paymentMethod === "card" ? "text-primary" : "text-muted-foreground"}`} />
+          <div className="text-left">
+            <p className="text-xs font-medium text-foreground">Card</p>
+            <p className="text-xs text-muted-foreground">Pay after ride</p>
+          </div>
+        </button>
       </div>
 
-      {insufficient && (
-        <div className="space-y-2">
-          <p className="text-xs text-destructive text-center">
-            Insufficient balance — need ${(fare - walletBalance).toFixed(2)} more
+      {paymentMethod === "wallet" && insufficient && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-destructive">
+            Need ${(fare - walletBalance).toFixed(2)} more
           </p>
           <button
             onClick={() => navigate("/wallet")}
-            className="w-full py-3 rounded-xl bg-secondary text-foreground font-medium text-sm active:scale-[0.98] transition-transform"
+            className="text-xs text-primary font-medium px-3 py-1.5 rounded-lg bg-primary/10"
           >
-            Top Up Wallet
+            Top Up
           </button>
         </div>
       )}

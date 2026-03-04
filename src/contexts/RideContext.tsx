@@ -76,6 +76,9 @@ interface RideContextType {
   savedPlaces: SavedPlace[];
   loadSavedPlaces: () => void;
   paymentError: string | null;
+  paymentMethod: "wallet" | "card";
+  setPaymentMethod: (m: "wallet" | "card") => void;
+  payCardForRide: () => Promise<void>;
 }
 
 const defaultRide: RideInfo = {
@@ -115,6 +118,7 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
   const [activeRideId, setActiveRideId] = useState<string | null>(null);
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"wallet" | "card">("wallet");
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const prevStatusRef = useRef<RideStatus>("idle");
@@ -394,10 +398,32 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
     }
   }, [status]);   // intentionally omit playSound/addNotification/ride to avoid loop
 
+  // ─── Card payment via Stripe Checkout ────────────────────────────────────
+  const payCardForRide = useCallback(async () => {
+    if (!activeRideId || !ride.fare) return;
+    const { data, error } = await supabase.functions.invoke("create-ride-payment-checkout", {
+      body: {
+        amount: ride.fare,
+        ride_id: activeRideId,
+        dropoff_address: ride.dropoff?.address,
+      },
+    });
+    if (error || !data?.url) {
+      setPaymentError("Failed to start card payment. Please try again.");
+      return;
+    }
+    window.location.href = data.url;
+  }, [activeRideId, ride.fare, ride.dropoff]);
+
   // ─── Payment on ride completion ────────────────────────────────────────────
   // Keep a ref so the status-change effect can call the latest version
   const handlePaymentOnCompletion = useCallback(async () => {
     if (!user || !activeRideId || !ride.fare) return;
+    // Card payments are collected separately via Stripe — skip wallet deduction
+    if (paymentMethod === "card") {
+      await supabase.from("rides").update({ payment_status: "card_pending", final_fare: ride.fare }).eq("id", activeRideId);
+      return;
+    }
 
     const { data: bal } = await supabase
       .from("wallet_balances")
@@ -565,6 +591,8 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         activeRideId,
         savedPlaces, loadSavedPlaces,
         paymentError,
+        paymentMethod, setPaymentMethod,
+        payCardForRide,
       }}
     >
       {children}

@@ -1,15 +1,16 @@
-import { Star, Check } from "lucide-react";
+import { Star, Check, CreditCard, Loader2 } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function RideComplete() {
-  const { ride, cancelRide, activeRideId, paymentError } = useRide();
+  const { ride, cancelRide, activeRideId, paymentError, paymentMethod, payCardForRide } = useRide();
   const { user } = useAuth();
-  const [rating, setRating]     = useState(0);
-  const [feedback, setFeedback] = useState("");
+  const [rating, setRating]         = useState(0);
+  const [feedback, setFeedback]     = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [payingCard, setPayingCard] = useState(false);
 
   const handleDone = async () => {
     setSubmitting(true);
@@ -41,6 +42,8 @@ export default function RideComplete() {
         <p className="text-2xl font-bold text-foreground mt-1">${ride.fare.toFixed(2)}</p>
         {paymentError ? (
           <p className="text-xs text-destructive mt-1">{paymentError}</p>
+        ) : paymentMethod === "card" ? (
+          <p className="text-xs text-warning">Payment pending</p>
         ) : (
           <p className="text-xs text-muted-foreground">Paid from wallet</p>
         )}
@@ -97,12 +100,27 @@ export default function RideComplete() {
         className="w-full bg-secondary rounded-xl px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground resize-none"
       />
 
+      {paymentMethod === "card" && (
+        <button
+          onClick={async () => {
+            setPayingCard(true);
+            await payCardForRide();
+            setPayingCard(false);
+          }}
+          disabled={payingCard}
+          className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {payingCard ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+          {payingCard ? "Redirecting…" : `Pay $${ride.fare.toFixed(2)} by Card`}
+        </button>
+      )}
+
       <button
         onClick={handleDone}
         disabled={submitting}
-        className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-50"
+        className="w-full py-3.5 rounded-xl bg-secondary text-foreground font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-50"
       >
-        {submitting ? "Saving…" : "Done"}
+        {submitting ? "Saving…" : paymentMethod === "card" ? "Skip for now" : "Done"}
       </button>
     </div>
   );
