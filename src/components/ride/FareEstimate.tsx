@@ -25,6 +25,7 @@ export default function FareEstimate() {
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
   const [cardName, setCardName] = useState("");
+  const [zip, setZip] = useState("");
   const [cardError, setCardError] = useState("");
 
   const selectedType = rideTypes.find((r) => r.id === selected)!;
@@ -164,6 +165,14 @@ export default function FareEstimate() {
               value={cvv}
               onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
             />
+            <input
+              className="w-24 px-3 py-2.5 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="ZIP"
+              inputMode="numeric"
+              maxLength={10}
+              value={zip}
+              onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            />
           </div>
           {cardError && <p className="text-xs text-destructive">{cardError}</p>}
         </div>
@@ -181,7 +190,7 @@ export default function FareEstimate() {
         <button
           onClick={() => {
             const rawNum = cardNumber.replace(/\s/g, "");
-            if (!cardName.trim() || rawNum.length < 16 || expiry.length < 5 || cvv.length < 3) {
+            if (!cardName.trim() || rawNum.length < 16 || expiry.length < 5 || cvv.length < 3 || zip.length < 4) {
               setCardError("Please fill in all card details correctly.");
               return;
             }
