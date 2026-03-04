@@ -1,4 +1,4 @@
-import { ArrowLeft, Car, Zap, Users, Wallet, CreditCard, AlertTriangle, Loader2 } from "lucide-react";
+import { ArrowLeft, Car, Zap, Users, Wallet, CreditCard, AlertTriangle, Lock } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -9,11 +9,23 @@ const rideTypes = [
   { id: "shared", label: "Shared", icon: Users, multiplier: 0.7, eta: "7 min", desc: "Share & save" },
 ];
 
+function formatCardNumber(v: string) {
+  return v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+}
+function formatExpiry(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 4);
+  return d.length > 2 ? d.slice(0, 2) + "/" + d.slice(2) : d;
+}
+
 export default function FareEstimate() {
-  const { setStatus, ride, requestRide, walletBalance, paymentMethod, setPaymentMethod, initiateCardBooking } = useRide();
+  const { setStatus, ride, requestRide, walletBalance, paymentMethod, setPaymentMethod } = useRide();
   const navigate = useNavigate();
   const [selected, setSelected] = useState("standard");
-  const [redirecting, setRedirecting] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardError, setCardError] = useState("");
 
   const selectedType = rideTypes.find((r) => r.id === selected)!;
   const fare = ride.fare * selectedType.multiplier;
@@ -116,6 +128,47 @@ export default function FareEstimate() {
         </div>
       )}
 
+      {/* Card input form */}
+      {paymentMethod === "card" && (
+        <div className="space-y-2.5 rounded-xl bg-secondary/60 border border-border p-4">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+            <p className="text-xs text-muted-foreground font-medium">Card Details</p>
+          </div>
+          <input
+            className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            placeholder="Name on card"
+            value={cardName}
+            onChange={(e) => setCardName(e.target.value)}
+          />
+          <input
+            className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 tracking-widest"
+            placeholder="Card number"
+            inputMode="numeric"
+            value={cardNumber}
+            onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+          />
+          <div className="flex gap-2">
+            <input
+              className="flex-1 px-3 py-2.5 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="MM/YY"
+              inputMode="numeric"
+              value={expiry}
+              onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+            />
+            <input
+              className="w-24 px-3 py-2.5 rounded-lg bg-background border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="CVV"
+              inputMode="numeric"
+              maxLength={4}
+              value={cvv}
+              onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            />
+          </div>
+          {cardError && <p className="text-xs text-destructive">{cardError}</p>}
+        </div>
+      )}
+
       {paymentMethod === "wallet" ? (
         <button
           onClick={requestRide}
@@ -126,16 +179,19 @@ export default function FareEstimate() {
         </button>
       ) : (
         <button
-          onClick={async () => {
-            setRedirecting(true);
-            await initiateCardBooking(fare);
-            setRedirecting(false);
+          onClick={() => {
+            const rawNum = cardNumber.replace(/\s/g, "");
+            if (!cardName.trim() || rawNum.length < 16 || expiry.length < 5 || cvv.length < 3) {
+              setCardError("Please fill in all card details correctly.");
+              return;
+            }
+            setCardError("");
+            requestRide();
           }}
-          disabled={redirecting}
-          className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
         >
-          {redirecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-          {redirecting ? "Redirecting to payment…" : `Pay & Request · $${fareStr}`}
+          <CreditCard className="w-4 h-4" />
+          Pay & Request · ${fareStr}
         </button>
       )}
     </div>
