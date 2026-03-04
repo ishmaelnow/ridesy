@@ -94,6 +94,16 @@ const defaultRide: RideInfo = {
 
 const RideContext = createContext<RideContextType | null>(null);
 
+// Singleton AudioContext — unlocked on first user gesture
+let _audioCtx: AudioContext | null = null;
+function getAudioCtx(): AudioContext | null {
+  try {
+    if (!_audioCtx) _audioCtx = new AudioContext();
+    if (_audioCtx.state === "suspended") _audioCtx.resume();
+    return _audioCtx;
+  } catch { return null; }
+}
+
 // Map DB ride_status to our UI status
 function dbStatusToUi(dbStatus: string): RideStatus {
   switch (dbStatus) {
@@ -313,11 +323,26 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  // ─── Unlock AudioContext on first user gesture ────────────────────────────
+  useEffect(() => {
+    const unlock = () => {
+      if (!_audioCtx) _audioCtx = new AudioContext();
+      if (_audioCtx.state === "suspended") _audioCtx.resume();
+    };
+    document.addEventListener("touchstart", unlock, { once: true });
+    document.addEventListener("click", unlock, { once: true });
+    return () => {
+      document.removeEventListener("touchstart", unlock);
+      document.removeEventListener("click", unlock);
+    };
+  }, []);
+
   // ─── Audible notification ──────────────────────────────────────────────────
   const playSound = useCallback((frequency = 880) => {
     if (!soundEnabled) return;
     try {
-      const ctx = new AudioContext();
+      const ctx = getAudioCtx();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);

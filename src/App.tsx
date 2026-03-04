@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { RideProvider } from "@/contexts/RideContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -24,10 +24,14 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-function RiderRoute({ children }: { children: React.ReactNode }) {
+// Single RideProvider wraps ALL rider routes so state (activeRideId, etc.)
+// persists across navigation instead of being reset on every route change.
+function RiderLayout() {
   return (
     <ProtectedRoute redirectTo="/auth?role=rider">
-      <RideProvider>{children}</RideProvider>
+      <RideProvider>
+        <Outlet />
+      </RideProvider>
     </ProtectedRoute>
   );
 }
@@ -45,17 +49,19 @@ const App = () => (
             <Route path="/auth"    element={<Auth />}       />
             <Route path="/install" element={<Install />}    />
 
-            {/* Rider */}
-            <Route path="/rider"         element={<RiderRoute><Index />        </RiderRoute>} />
-            <Route path="/profile"       element={<RiderRoute><Profile />      </RiderRoute>} />
-            <Route path="/wallet"        element={<RiderRoute><Wallet />       </RiderRoute>} />
-            <Route path="/rides"         element={<RiderRoute><RideHistory />  </RiderRoute>} />
-            <Route path="/settings"      element={<RiderRoute><Settings />     </RiderRoute>} />
-            <Route path="/chat"          element={<RiderRoute><Chat />         </RiderRoute>} />
-            <Route path="/notifications" element={<RiderRoute><Notifications /></RiderRoute>} />
-            <Route path="/saved-places"  element={<RiderRoute><SavedPlaces />  </RiderRoute>} />
-            <Route path="/about"         element={<RiderRoute><About />        </RiderRoute>} />
-            <Route path="/support"       element={<RiderRoute><Support />      </RiderRoute>} />
+            {/* Rider — all share ONE RideProvider instance */}
+            <Route element={<RiderLayout />}>
+              <Route path="/rider"         element={<Index />}         />
+              <Route path="/profile"       element={<Profile />}       />
+              <Route path="/wallet"        element={<Wallet />}        />
+              <Route path="/rides"         element={<RideHistory />}   />
+              <Route path="/settings"      element={<Settings />}      />
+              <Route path="/chat"          element={<Chat />}          />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/saved-places"  element={<SavedPlaces />}   />
+              <Route path="/about"         element={<About />}         />
+              <Route path="/support"       element={<Support />}       />
+            </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>
