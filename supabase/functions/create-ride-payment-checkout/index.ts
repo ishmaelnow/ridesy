@@ -24,7 +24,7 @@ serve(async (req) => {
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated");
 
-    const { amount, ride_id, dropoff_address } = await req.json();
+    const { amount, dropoff_address } = await req.json();
     const numAmount = Number(amount);
     if (!Number.isFinite(numAmount) || numAmount <= 0) {
       throw new Error("Invalid ride fare amount");
@@ -57,9 +57,9 @@ serve(async (req) => {
         quantity: 1,
       }],
       mode: "payment",
-      success_url: `${origin}/rider?ride_payment=success&ride_id=${ride_id}&amount=${amount}`,
+      success_url: `${origin}/rider?card_booking=success&amount=${amount}`,
       cancel_url: `${origin}/rider`,
-      metadata: { user_id: user.id, ride_id, amount: String(amount), type: "ride_payment" },
+      metadata: { user_id: user.id, amount: String(amount) },
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

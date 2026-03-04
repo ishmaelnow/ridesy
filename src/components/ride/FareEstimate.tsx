@@ -1,4 +1,4 @@
-import { ArrowLeft, Car, Zap, Users, Wallet, CreditCard, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Car, Zap, Users, Wallet, CreditCard, AlertTriangle, Loader2 } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,9 +10,10 @@ const rideTypes = [
 ];
 
 export default function FareEstimate() {
-  const { setStatus, ride, requestRide, walletBalance, paymentMethod, setPaymentMethod } = useRide();
+  const { setStatus, ride, requestRide, walletBalance, paymentMethod, setPaymentMethod, initiateCardBooking } = useRide();
   const navigate = useNavigate();
   const [selected, setSelected] = useState("standard");
+  const [redirecting, setRedirecting] = useState(false);
 
   const selectedType = rideTypes.find((r) => r.id === selected)!;
   const fare = ride.fare * selectedType.multiplier;
@@ -96,7 +97,7 @@ export default function FareEstimate() {
           <CreditCard className={`w-4 h-4 shrink-0 ${paymentMethod === "card" ? "text-primary" : "text-muted-foreground"}`} />
           <div className="text-left">
             <p className="text-xs font-medium text-foreground">Card</p>
-            <p className="text-xs text-muted-foreground">Pay after ride</p>
+            <p className="text-xs text-muted-foreground">Pay before ride</p>
           </div>
         </button>
       </div>
@@ -115,13 +116,28 @@ export default function FareEstimate() {
         </div>
       )}
 
-      <button
-        onClick={requestRide}
-        disabled={insufficient}
-        className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Request {selectedType.label} · ${fareStr}
-      </button>
+      {paymentMethod === "wallet" ? (
+        <button
+          onClick={requestRide}
+          disabled={insufficient}
+          className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Request {selectedType.label} · ${fareStr}
+        </button>
+      ) : (
+        <button
+          onClick={async () => {
+            setRedirecting(true);
+            await initiateCardBooking(fare);
+            setRedirecting(false);
+          }}
+          disabled={redirecting}
+          className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {redirecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+          {redirecting ? "Redirecting to payment…" : `Pay & Request · $${fareStr}`}
+        </button>
+      )}
     </div>
   );
 }

@@ -78,7 +78,9 @@ interface RideContextType {
   paymentError: string | null;
   paymentMethod: "wallet" | "card";
   setPaymentMethod: (m: "wallet" | "card") => void;
-  payCardForRide: () => Promise<void>;
+  initiateCardBooking: (fare: number) => Promise<void>;
+  requestPrepaidRide: (finalFare: number) => Promise<void>;
+  ridePaid: boolean;
 }
 
 const defaultRide: RideInfo = {
@@ -119,6 +121,7 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
   const [savedPlaces, setSavedPlaces] = useState<SavedPlace[]>([]);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"wallet" | "card">("wallet");
+  const [ridePaid, setRidePaid] = useState(false);
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const prevStatusRef = useRef<RideStatus>("idle");
@@ -398,32 +401,87 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
     }
   }, [status]);   // intentionally omit playSound/addNotification/ride to avoid loop
 
-  // ─── Card payment via Stripe Checkout ────────────────────────────────────
-  const payCardForRide = useCallback(async () => {
-    if (!activeRideId || !ride.fare) return;
+  // ─── Card booking: save ride details + redirect to Stripe BEFORE ride created
+  const initiateCardBooking = useCallback(async (fare: number) => {
+    if (!ride.pickup || !ride.dropoff) return;
+    sessionStorage.setItem("pending_ride", JSON.stringify({
+      pickup: ride.pickup,
+      dropoff: ride.dropoff,
+      fare,
+      distance: ride.distance,
+      duration: ride.duration,
+    }));
     const { data, error } = await supabase.functions.invoke("create-ride-payment-checkout", {
-      body: {
-        amount: ride.fare,
-        ride_id: activeRideId,
-        dropoff_address: ride.dropoff?.address,
-      },
+      body: { amount: fare, dropoff_address: ride.dropoff.address },
     });
     if (error || !data?.url) {
-      setPaymentError("Failed to start card payment. Please try again.");
+      sessionStorage.removeItem("pending_ride");
+      setPaymentError("Failed to start payment. Please try again.");
       return;
     }
     window.location.href = data.url;
-  }, [activeRideId, ride.fare, ride.dropoff]);
+  }, [ride.pickup, ride.dropoff, ride.distance, ride.duration]);
+
+  // ─── Create ride after successful card pre-payment (called on Stripe return)
+  const requestPrepaidRide = useCallback(async (finalFare: number) => {
+    const stored = sessionStorage.getItem("pending_ride");
+    if (!stored || !user) return;
+    const details = JSON.parse(stored) as { pickup: Location; dropoff: Location; fare: number; distance: string; duration: string };
+    sessionStorage.removeItem("pending_ride");
+
+    setRide({ ...details, fare: finalFare, driver: null });
+    setStatus("searching");
+
+    const { data, error } = await supabase
+      .from("rides")
+      .insert({
+        rider_id:        user.id,
+        pickup_lat:      details.pickup.lat,
+        pickup_lng:      details.pickup.lng,
+        pickup_address:  details.pickup.address,
+        dropoff_lat:     details.dropoff.lat,
+        dropoff_lng:     details.dropoff.lng,
+        dropoff_address: details.dropoff.address,
+        fare:            finalFare,
+        distance:        details.distance,
+        duration:        details.duration,
+        status:          "requested",
+        payment_status:  "paid",
+        final_fare:      finalFare,
+      })
+      .select()
+      .single();
+
+    if (error) { setStatus("fare_estimate"); return; }
+
+    setActiveRideId(data.id);
+    setRidePaid(true);
+
+    await supabase.from("wallet_transactions").insert({
+      user_id:     user.id,
+      type:        "card_payment",
+      amount:      finalFare,
+      description: `Ride to ${details.dropoff.address}`,
+      status:      "completed",
+      ride_id:     data.id,
+    });
+
+    addNotification({
+      title:   "Ride Requested",
+      message: "Payment received. Looking for nearby drivers…",
+      read:    false,
+    });
+  }, [user, addNotification]);
 
   // ─── Payment on ride completion ────────────────────────────────────────────
   // Keep a ref so the status-change effect can call the latest version
   const handlePaymentOnCompletion = useCallback(async () => {
     if (!user || !activeRideId || !ride.fare) return;
-    // Card payments are collected separately via Stripe — skip wallet deduction
-    if (paymentMethod === "card") {
-      await supabase.from("rides").update({ payment_status: "card_pending", final_fare: ride.fare }).eq("id", activeRideId);
-      return;
-    }
+
+    // Skip if already paid (card pre-payment before booking)
+    const { data: rideRow } = await supabase
+      .from("rides").select("payment_status").eq("id", activeRideId).single();
+    if (rideRow?.payment_status === "paid") return;
 
     const { data: bal } = await supabase
       .from("wallet_balances")
@@ -576,6 +634,8 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
     setStatus("idle");
     setRide(defaultRide);
     setPaymentError(null);
+    setRidePaid(false);
+    setPaymentMethod("wallet");
   }, [activeRideId]);
 
   return (
@@ -592,7 +652,8 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
         savedPlaces, loadSavedPlaces,
         paymentError,
         paymentMethod, setPaymentMethod,
-        payCardForRide,
+        initiateCardBooking, requestPrepaidRide,
+        ridePaid,
       }}
     >
       {children}
