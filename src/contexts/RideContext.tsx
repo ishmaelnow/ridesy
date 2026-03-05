@@ -547,6 +547,22 @@ export function RideProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { paymentRef.current = handlePaymentOnCompletion; }, [handlePaymentOnCompletion]);
 
+  // ─── Polling fallback ───────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!activeRideId) return;
+    const poll = async () => {
+      const { data: r } = await supabase.from("rides").select("*").eq("id", activeRideId).single();
+      if (!r) return;
+      setStatus(dbStatusToUi(r.status));
+      if (r.driver_lat && r.driver_lng) setDriverLocation({ lat: r.driver_lat, lng: r.driver_lng });
+      if (r.driver_id) setRide((prev) => { if (!prev.driver || prev.driver.id !== r.driver_id) loadDriverInfo(r.driver_id); return prev; });
+      if (r.status === "cancelled") { setDriverLocation(null); setActiveRideId(null); setStatus("idle"); setRide(defaultRide); }
+      if (r.status === "completed") setDriverLocation(null);
+    };
+    const interval = setInterval(poll, 4000);
+    return () => clearInterval(interval);
+  }, [activeRideId]);
+
   // ─── Realtime ride subscription ────────────────────────────────────────────
   useEffect(() => {
     if (!activeRideId) {
