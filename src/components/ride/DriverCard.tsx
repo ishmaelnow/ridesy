@@ -1,9 +1,9 @@
-import { Phone, MessageCircle, Star, Navigation } from "lucide-react";
+import { Phone, MessageCircle, Star } from "lucide-react";
 import { useRide } from "@/contexts/RideContext";
 import { useNavigate } from "react-router-dom";
 
 export default function DriverCard() {
-  const { ride, status } = useRide();
+  const { ride, status, cancelRide } = useRide();
   const navigate = useNavigate();
   const driver = ride.driver;
 
@@ -54,6 +54,14 @@ export default function DriverCard() {
           Call
         </button>
       </div>
+
+      {/* Cancel */}
+      <button
+        onClick={cancelRide}
+        className="w-full py-2.5 rounded-xl border border-destructive/40 text-destructive text-sm font-medium active:scale-95 transition-transform"
+      >
+        Cancel Ride
+      </button>
     </div>
   );
 }
