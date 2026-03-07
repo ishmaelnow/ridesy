@@ -9,6 +9,8 @@ interface AuthContextType {
   roles: string[];
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  sendOtp: (phone: string) => Promise<{ error: string | null }>;
+  verifyOtp: (phone: string, token: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   hasRole: (role: string) => boolean;
 }
@@ -22,48 +24,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [roles, setRoles] = useState<string[]>([]);
 
   const fetchRoles = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+    const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     setRoles(data?.map((r: any) => r.role) ?? []);
   }, []);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          // Defer role fetch to avoid deadlock
-          setTimeout(() => fetchRoles(session.user.id), 0);
-        } else {
-          setRoles([]);
-        }
-        setLoading(false);
-      }
-    );
-
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) setTimeout(() => fetchRoles(session.user.id), 0);
+      else setRoles([]);
+      setLoading(false);
+    });
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchRoles(session.user.id);
-      }
+      if (session?.user) fetchRoles(session.user.id);
       setLoading(false);
     });
-
     return () => subscription.unsubscribe();
   }, [fetchRoles]);
 
   const signUp = async (email: string, password: string, fullName: string) => {
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
-      },
+      email, password,
+      options: { data: { full_name: fullName }, emailRedirectTo: window.location.origin },
     });
     return { error: error?.message ?? null };
   };
@@ -73,17 +58,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   };
 
+  const sendOtp = async (phone: string) => {
+    const { error } = await supabase.auth.signInWithOtp({ phone });
+    return { error: error?.message ?? null };
+  };
+
+  const verifyOtp = async (phone: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({ phone, token, type: "sms" });
+    return { error: error?.message ?? null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setRoles([]);
+    setUser(null); setSession(null); setRoles([]);
   };
 
   const hasRole = (role: string) => roles.includes(role);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, roles, signUp, signIn, signOut, hasRole }}>
+    <AuthContext.Provider value={{ user, session, loading, roles, signUp, signIn, sendOtp, verifyOtp, signOut, hasRole }}>
       {children}
     </AuthContext.Provider>
   );
