@@ -32,7 +32,7 @@ export default function Auth() {
     e.preventDefault();
     setSubmitting(true);
     if (mode === "signup") {
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await signUp(email, password, fullName, phone || undefined);
       if (error) toast.error(error);
       else { toast.success("Account created! Check your email to verify, then sign in."); setMode("login"); }
     } else {
@@ -100,10 +100,16 @@ export default function Auth() {
           {method === "email" && step === "form" && (
             <form onSubmit={handleEmailSubmit} className="space-y-3">
               {mode === "signup" && (
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input className={inputClass} placeholder="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} required />
-                </div>
+                <>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input className={inputClass} placeholder="Full Name" value={fullName} onChange={e => setFullName(e.target.value)} required />
+                  </div>
+                  <div className="relative">
+                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input className={inputClass} placeholder="+1 234 567 8900" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+                  </div>
+                </>
               )}
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
