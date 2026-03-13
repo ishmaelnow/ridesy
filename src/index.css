@@ -52,16 +52,6 @@
     --warning: 38 92% 50%;
     --ride-accent: 220 80% 50%;
   }
-
-  /* Driver app theme — green accent */
-  .theme-driver {
-    --primary: 152 70% 40%;
-    --primary-foreground: 0 0% 100%;
-    --ring: 152 70% 40%;
-    --sidebar-primary: 152 70% 40%;
-    --sidebar-ring: 152 70% 40%;
-    --ride-accent: 152 70% 40%;
-  }
 }
 
 @layer base {

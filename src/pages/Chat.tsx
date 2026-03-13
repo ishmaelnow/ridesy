@@ -1,6 +1,6 @@
 import { ArrowLeft, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
